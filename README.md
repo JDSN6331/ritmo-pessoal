@@ -1,14 +1,16 @@
-# Welcome to your Lovable project
+# Ritmo Pessoal
+
+Bom dia, tudo bem? Gostaria que você criasse um aplicativo de gestão de tarefas pessoais. A ideia é que o usuário possa registrar tarefas, hábitos e metas. Precisa ter recorrência, datas, periodicidade, gestão de tarefas concluídas, em andamento e atraso, etc.
 
 This project was built with [Lovable](https://lovable.dev).
 
 ## Build with Lovable
 
-Open your project in the [Lovable editor](https://lovable.dev) and keep building.
+Continue developing this project in the [Lovable editor](https://lovable.dev/projects/b7467c82-8ac5-4e30-8ef1-8ce94daaae64).
 
 - **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: connect the project to GitHub and every change made in Lovable is committed straight to your repository.
-- **Full ownership**: this code is yours. Push to your repository and your changes sync back into Lovable, ready for your next prompt.
+- **Stay in sync**: every change made in Lovable is committed straight to this repository.
+- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
 
 ## Development
 
@@ -20,10 +22,3 @@ cd <repository-name>
 npm i
 npm run dev
 ```
-
-## Built with
-
-- TanStack Start
-- TypeScript
-- React
-- Tailwind CSS
