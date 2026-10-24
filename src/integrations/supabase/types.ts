@@ -14,7 +14,146 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      goals: {
+        Row: {
+          created_at: string
+          current_value: number
+          deadline: string | null
+          description: string | null
+          id: string
+          target_value: number
+          title: string
+          unit: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_value?: number
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          target_value?: number
+          title: string
+          unit?: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          current_value?: number
+          deadline?: string | null
+          description?: string | null
+          id?: string
+          target_value?: number
+          title?: string
+          unit?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      habit_logs: {
+        Row: {
+          created_at: string
+          habit_id: string
+          id: string
+          log_date: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          habit_id: string
+          id?: string
+          log_date: string
+          user_id?: string
+        }
+        Update: {
+          created_at?: string
+          habit_id?: string
+          id?: string
+          log_date?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "habit_logs_habit_id_fkey"
+            columns: ["habit_id"]
+            isOneToOne: false
+            referencedRelation: "habits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      habits: {
+        Row: {
+          color: string
+          created_at: string
+          days_of_week: number[]
+          frequency: string
+          id: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          color?: string
+          created_at?: string
+          days_of_week?: number[]
+          frequency?: string
+          id?: string
+          title: string
+          user_id?: string
+        }
+        Update: {
+          color?: string
+          created_at?: string
+          days_of_week?: number[]
+          frequency?: string
+          id?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      tasks: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          description: string | null
+          due_date: string | null
+          id: string
+          priority: string
+          recurrence: string
+          recurrence_interval: number
+          status: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          recurrence?: string
+          recurrence_interval?: number
+          status?: string
+          title: string
+          user_id?: string
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          priority?: string
+          recurrence?: string
+          recurrence_interval?: number
+          status?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
