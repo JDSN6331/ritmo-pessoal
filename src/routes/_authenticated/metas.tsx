@@ -88,7 +88,7 @@ function GoalDialog({ open, onOpenChange, goal }: { open: boolean; onOpenChange:
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     save.mutate({
-      id: goal?.id, title: f.title.trim(), description: f.description || null,
+      ...(goal ? { id: goal.id } : {}), title: f.title.trim(), description: f.description || null,
       target_value: Number(f.target_value) || 1, current_value: Number(f.current_value) || 0,
       unit: f.unit, deadline: f.deadline || null,
     }, { onSuccess: () => onOpenChange(false) });

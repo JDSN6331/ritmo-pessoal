@@ -34,7 +34,7 @@ export function TaskDialog({ open, onOpenChange, task, defaultDate }: Props) {
     if (!f.title.trim()) return;
     if (f.recurrence !== "none" && !f.due_date) return;
     save.mutate(
-      { ...f, id: task?.id, title: f.title.trim(), description: f.description || null, due_date: f.due_date || null },
+      { ...f, ...(task ? { id: task.id } : {}), title: f.title.trim(), description: f.description || null, due_date: f.due_date || null },
       { onSuccess: () => onOpenChange(false) },
     );
   };
