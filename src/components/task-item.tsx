@@ -45,8 +45,8 @@ type Props = {
   task: Task;
   subtasks?: Task[];
   onEdit: (task: Task) => void;
-  selectedIds?: ReadonlySet<string>;
-  onSelectedChange?: (task: Task, selected: boolean) => void;
+  selectedIds?: ReadonlySet<string> | undefined;
+  onSelectedChange?: ((task: Task, selected: boolean) => void) | undefined;
 };
 
 export function TaskItem({ task, subtasks = [], onEdit, selectedIds, onSelectedChange }: Props) {
@@ -116,26 +116,27 @@ function TaskRow({
           selected && "bg-primary/[0.05]",
         )}
       >
-        {onSelectedChange && (
+        {onSelectedChange ? (
           <Checkbox
-            className="mt-0.5"
+            className="mt-0.5 size-5"
             checked={selected}
             aria-label={`Selecionar ${task.title}`}
             onCheckedChange={(value) => onSelectedChange(task, value === true)}
           />
+        ) : (
+          <button
+            aria-label={done ? "Reabrir tarefa" : "Concluir tarefa"}
+            onClick={() => setStatus.mutate({ task, status: done ? "pending" : "done" })}
+            className={cn(
+              "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors",
+              done
+                ? "border-primary bg-primary text-primary-foreground"
+                : "border-muted-foreground/50 hover:border-primary",
+            )}
+          >
+            {done && <Check className="size-3.5" strokeWidth={3} />}
+          </button>
         )}
-        <button
-          aria-label={done ? "Reabrir tarefa" : "Concluir tarefa"}
-          onClick={() => setStatus.mutate({ task, status: done ? "pending" : "done" })}
-          className={cn(
-            "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors",
-            done
-              ? "border-primary bg-primary text-primary-foreground"
-              : "border-muted-foreground/50 hover:border-primary",
-          )}
-        >
-          {done && <Check className="size-3.5" strokeWidth={3} />}
-        </button>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className={cn("size-1.5 shrink-0 rounded-full", PRIORITY_DOT[task.priority])} />

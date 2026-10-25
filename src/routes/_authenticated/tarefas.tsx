@@ -1,6 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { CalendarClock, FolderPlus, MoreHorizontal, Plus, Trash2, X } from "lucide-react";
+import {
+  CalendarClock,
+  FolderPlus,
+  ListChecks,
+  MoreHorizontal,
+  Plus,
+  Trash2,
+  X,
+} from "lucide-react";
 import {
   useBulkTasks,
   useDeleteList,
@@ -75,6 +83,7 @@ function TasksPage() {
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
+  const [selectionMode, setSelectionMode] = useState(false);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [bulkDate, setBulkDate] = useState("");
   const [selectedList, setSelectedList] = useState("all");
@@ -113,7 +122,12 @@ function TasksPage() {
     if (!selected.size) return;
     bulk.mutate(
       { ids: [...selected], operation, ...(value !== undefined ? { value } : {}) },
-      { onSuccess: () => setSelected(new Set()) },
+      {
+        onSuccess: () => {
+          setSelected(new Set());
+          setSelectionMode(false);
+        },
+      },
     );
   };
   const renderTasks = (items: Task[]) =>
@@ -123,8 +137,10 @@ function TasksPage() {
           key={task.id}
           task={task}
           subtasks={subtasks}
-          selectedIds={selected}
-          onSelectedChange={(value, checked) => changeSelection(value.id, checked)}
+          selectedIds={selectionMode ? selected : undefined}
+          onSelectedChange={
+            selectionMode ? (value, checked) => changeSelection(value.id, checked) : undefined
+          }
           onEdit={(value) => {
             setEditing(value);
             setOpen(true);
@@ -212,6 +228,16 @@ function TasksPage() {
           onChange={(e) => setQ(e.target.value)}
           className="max-w-56"
         />
+        <Button
+          variant={selectionMode ? "secondary" : "outline"}
+          onClick={() => {
+            setSelectionMode((active) => !active);
+            setSelected(new Set());
+          }}
+        >
+          {selectionMode ? <X /> : <ListChecks />}
+          {selectionMode ? "Cancelar seleção" : "Selecionar"}
+        </Button>
       </div>
       {selected.size > 0 && (
         <div className="sticky top-3 z-20 mb-4 flex flex-wrap items-center gap-2 rounded-xl border border-primary/20 bg-card/95 p-3 shadow-lg backdrop-blur">
