@@ -18,7 +18,7 @@ import {
   type Task,
   type TaskList,
 } from "@/lib/data";
-import { displayStatus, groupTasks, type DisplayStatus } from "@/lib/planner";
+import { displayStatus, groupTasks, mainTasks, type DisplayStatus } from "@/lib/planner";
 import { TaskItem } from "@/components/task-item";
 import { TaskDialog } from "@/components/task-dialog";
 import { Empty, PageHeader } from "@/components/page-header";
@@ -95,13 +95,14 @@ function TasksPage() {
   const saveList = useSaveList();
   const deleteList = useDeleteList();
   const bulk = useBulkTasks();
+  const primaryTasks = mainTasks(tasks);
 
-  const counts = tasks.reduce<Record<string, number>>((a, t) => {
+  const counts = primaryTasks.reduce<Record<string, number>>((a, t) => {
     const s = displayStatus(t);
     a[s] = (a[s] ?? 0) + 1;
     return a;
   }, {});
-  const filtered = tasks
+  const filtered = primaryTasks
     .filter((t) => selectedList === "all" || t.list_id === selectedList)
     .filter((t) => t.title.toLowerCase().includes(q.toLowerCase()));
   const list = filtered.filter((t) =>

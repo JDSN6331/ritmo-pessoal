@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { CircleX } from "lucide-react";
 import { useTasks, type Task } from "@/lib/data";
-import { groupTasks } from "@/lib/planner";
+import { groupTasks, mainTasks } from "@/lib/planner";
 import { Empty, PageHeader } from "@/components/page-header";
 import { TaskDialog } from "@/components/task-dialog";
 import { TaskItem } from "@/components/task-item";
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/nao-feitas")({
 function NotDonePage() {
   const { data: tasks = [], isLoading } = useTasks();
   const [editing, setEditing] = useState<Task | null>(null);
-  const notDone = tasks.filter((task) => task.status === "not_done");
+  const notDone = mainTasks(tasks).filter((task) => task.status === "not_done");
   const groups = groupTasks(tasks, notDone);
 
   return (

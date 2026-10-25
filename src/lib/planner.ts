@@ -36,6 +36,12 @@ export function isOverdue(t: { due_date: string | null; status: string }, today 
 }
 
 export type DisplayStatus = "done" | "not_done" | "overdue" | "in_progress" | "pending";
+
+/** Subtasks are internal steps and must never inflate task-level indicators. */
+export function mainTasks<T extends { parent_id: string | null }>(tasks: T[]) {
+  return tasks.filter((task) => !task.parent_id);
+}
+
 export function displayStatus(
   t: { due_date: string | null; status: string },
   today = todayISO(),

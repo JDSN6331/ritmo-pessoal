@@ -4,7 +4,14 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Check, Plus } from "lucide-react";
 import { useGoals, useHabits, useTasks, useToggleHabit, type Task } from "@/lib/data";
-import { goalProgress, groupTasks, isHabitDay, isOverdue, todayISO } from "@/lib/planner";
+import {
+  goalProgress,
+  groupTasks,
+  isHabitDay,
+  isOverdue,
+  mainTasks,
+  todayISO,
+} from "@/lib/planner";
 import { TaskItem } from "@/components/task-item";
 import { TaskDialog } from "@/components/task-dialog";
 import { Empty, PageHeader } from "@/components/page-header";
@@ -27,16 +34,17 @@ function Today() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const today = todayISO();
+  const primaryTasks = mainTasks(tasks);
 
-  const overdue = tasks.filter((t) => isOverdue(t, today));
-  const dueToday = tasks.filter(
+  const overdue = primaryTasks.filter((t) => isOverdue(t, today));
+  const dueToday = primaryTasks.filter(
     (t) => t.due_date === today && !["done", "not_done"].includes(t.status),
   );
-  const notDone = tasks.filter((t) => t.status === "not_done");
-  const inProgress = tasks.filter(
+  const notDone = primaryTasks.filter((t) => t.status === "not_done");
+  const inProgress = primaryTasks.filter(
     (t) => t.status === "in_progress" && t.due_date !== today && !isOverdue(t, today),
   );
-  const doneToday = tasks.filter(
+  const doneToday = primaryTasks.filter(
     (t) => t.status === "done" && t.completed_at?.slice(0, 10) === today,
   ).length;
   const habitsToday = (hd?.habits ?? []).filter((h) => isHabitDay(h.days_of_week, new Date()));
@@ -48,7 +56,7 @@ function Today() {
     { label: "Para hoje", value: dueToday.length, cls: "text-foreground" },
     {
       label: "Em andamento",
-      value: tasks.filter((t) => t.status === "in_progress").length,
+      value: primaryTasks.filter((t) => t.status === "in_progress").length,
       cls: "text-info",
     },
     { label: "Atrasadas", value: overdue.length, cls: "text-destructive" },

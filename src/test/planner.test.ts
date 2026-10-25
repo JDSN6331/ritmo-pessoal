@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { goalProgress, groupTasks, habitStreak, isOverdue, nextDueDate } from "@/lib/planner";
+import {
+  goalProgress,
+  groupTasks,
+  habitStreak,
+  isOverdue,
+  mainTasks,
+  nextDueDate,
+} from "@/lib/planner";
 
 describe("recorrência", () => {
   it("diária a cada 2 dias", () =>
@@ -31,6 +38,10 @@ describe("hierarquia de tarefas", () => {
 
   it("inclui as subtarefas quando a tarefa principal está visível", () => {
     expect(groupTasks([parent, child], [parent])).toEqual([{ task: parent, subtasks: [child] }]);
+  });
+
+  it("não inclui subtarefas nos indicadores de tarefas", () => {
+    expect(mainTasks([parent, child])).toEqual([parent]);
   });
 });
 

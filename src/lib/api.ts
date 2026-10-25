@@ -631,7 +631,7 @@ export const appApi = createServerFn({ method: "POST" })
     if (data.action === "admin.users")
       return {
         users: await all<User & { task_count: number }>(
-          "SELECT u.id,u.email,u.name,u.role,u.created_at,COUNT(t.id) AS task_count FROM users u LEFT JOIN tasks t ON t.user_id=u.id GROUP BY u.id,u.email,u.name,u.role,u.created_at ORDER BY u.created_at",
+          "SELECT u.id,u.email,u.name,u.role,u.created_at,COUNT(t.id) AS task_count FROM users u LEFT JOIN tasks t ON t.user_id=u.id AND t.parent_id IS NULL AND t.deleted_at IS NULL GROUP BY u.id,u.email,u.name,u.role,u.created_at ORDER BY u.created_at",
         ),
       };
     if (data.action === "admin.password") {

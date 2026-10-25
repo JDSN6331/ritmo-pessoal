@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { CheckCircle2, CircleX, Clock3, ListChecks, TrendingUp } from "lucide-react";
 import { useDashboard } from "@/lib/data";
-import { displayStatus, todayISO } from "@/lib/planner";
+import { displayStatus, mainTasks, todayISO } from "@/lib/planner";
 import { PageHeader } from "@/components/page-header";
 
 export const Route = createFileRoute("/_authenticated/analises")({
@@ -11,7 +11,7 @@ export const Route = createFileRoute("/_authenticated/analises")({
 
 function AnalyticsPage() {
   const { data } = useDashboard();
-  const tasks = data?.tasks ?? [];
+  const tasks = mainTasks(data?.tasks ?? []);
   const done = tasks.filter((t) => t.status === "done");
   const notDone = tasks.filter((t) => t.status === "not_done");
   const overdue = tasks.filter((t) => displayStatus(t) === "overdue");
