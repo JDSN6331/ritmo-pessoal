@@ -63,7 +63,7 @@ type Props = {
 };
 
 export function TaskItem({ task, subtasks = [], onEdit, selectedIds, onSelectedChange }: Props) {
-  const [subtasksExpanded, setSubtasksExpanded] = useState(true);
+  const [subtasksExpanded, setSubtasksExpanded] = useState(false);
   const [addSubtaskOpen, setAddSubtaskOpen] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const saveTask = useSaveTask();
@@ -179,7 +179,6 @@ export function TaskItem({ task, subtasks = [], onEdit, selectedIds, onSelectedC
                   onSuccess: () => {
                     setNewSubtaskTitle("");
                     setAddSubtaskOpen(false);
-                    setSubtasksExpanded(true);
                   },
                 },
               );
@@ -282,8 +281,10 @@ function TaskRow({
             )}
             <p
               className={cn(
-                "min-w-0 break-words font-medium sm:truncate",
-                nested && "text-xs font-normal leading-relaxed",
+                "min-w-0 font-medium",
+                nested
+                  ? "whitespace-normal break-words text-xs font-normal leading-relaxed [overflow-wrap:anywhere]"
+                  : "break-words sm:truncate",
                 done && "text-muted-foreground line-through",
               )}
             >
