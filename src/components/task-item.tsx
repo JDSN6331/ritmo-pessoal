@@ -16,7 +16,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { displayStatus, RECURRENCE_LABEL, type Recurrence } from "@/lib/planner";
+import { displayStatus, RECURRENCE_LABEL, subtaskProgress, type Recurrence } from "@/lib/planner";
 import { useDeleteTask, useSaveTask, useSetTaskStatus, type Task } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -67,6 +67,7 @@ export function TaskItem({ task, subtasks = [], onEdit, selectedIds, onSelectedC
   const [addSubtaskOpen, setAddSubtaskOpen] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const saveTask = useSaveTask();
+  const progress = subtaskProgress(subtasks);
 
   const openAddSubtask = () => {
     setNewSubtaskTitle("");
@@ -103,8 +104,11 @@ export function TaskItem({ task, subtasks = [], onEdit, selectedIds, onSelectedC
                 )}
                 <CornerDownRight className="size-3.5" />
                 {subtasks.length} {subtasks.length === 1 ? "subtarefa" : "subtarefas"}
-                <span className="ml-auto hidden font-normal sm:inline">
-                  {subtasksExpanded ? "Recolher" : "Expandir"}
+                <span
+                  className="ml-auto shrink-0 rounded-full bg-primary/10 px-2 py-0.5 font-semibold tabular-nums text-primary"
+                  title={`${progress.done} de ${progress.total} subtarefas concluídas`}
+                >
+                  {progress.done}/{progress.total} = {progress.percentage}%
                 </span>
               </button>
               {!onSelectedChange && (
@@ -127,6 +131,21 @@ export function TaskItem({ task, subtasks = [], onEdit, selectedIds, onSelectedC
             >
               <Plus className="size-3.5" /> Adicionar subtarefa
             </button>
+          )}
+          {subtasks.length > 0 && (
+            <div
+              className="mb-2 h-1 overflow-hidden rounded-full bg-muted"
+              role="progressbar"
+              aria-label="Progresso das subtarefas"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={progress.percentage}
+            >
+              <div
+                className="h-full rounded-full bg-primary transition-[width]"
+                style={{ width: `${progress.percentage}%` }}
+              />
+            </div>
           )}
           {subtasks.length > 0 && subtasksExpanded && (
             <div className="divide-y rounded-lg border bg-background/40">

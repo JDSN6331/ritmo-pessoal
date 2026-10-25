@@ -6,6 +6,7 @@ import {
   isOverdue,
   mainTasks,
   nextDueDate,
+  subtaskProgress,
 } from "@/lib/planner";
 
 describe("recorrência", () => {
@@ -42,6 +43,14 @@ describe("hierarquia de tarefas", () => {
 
   it("não inclui subtarefas nos indicadores de tarefas", () => {
     expect(mainTasks([parent, child])).toEqual([parent]);
+  });
+
+  it("calcula feitas, total e percentual das subtarefas", () => {
+    expect(subtaskProgress([{ status: "done" }, { status: "pending" }])).toEqual({
+      done: 1,
+      total: 2,
+      percentage: 50,
+    });
   });
 });
 

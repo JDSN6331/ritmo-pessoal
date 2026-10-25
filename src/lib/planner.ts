@@ -42,6 +42,13 @@ export function mainTasks<T extends { parent_id: string | null }>(tasks: T[]) {
   return tasks.filter((task) => !task.parent_id);
 }
 
+export function subtaskProgress<T extends { status: string }>(subtasks: T[]) {
+  const total = subtasks.length;
+  const done = subtasks.filter((subtask) => subtask.status === "done").length;
+  const percentage = total ? Math.round((done / total) * 100) : 0;
+  return { done, total, percentage };
+}
+
 export function displayStatus(
   t: { due_date: string | null; status: string },
   today = todayISO(),
