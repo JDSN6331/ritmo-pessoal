@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
-import { CalendarClock, FolderPlus, Plus, Trash2, X } from "lucide-react";
+import { CalendarClock, FolderPlus, MoreHorizontal, Plus, Trash2, X } from "lucide-react";
 import {
   useBulkTasks,
   useDeleteList,
@@ -8,6 +8,7 @@ import {
   useSaveList,
   useTasks,
   type Task,
+  type TaskList,
 } from "@/lib/data";
 import { displayStatus, groupTasks, type DisplayStatus } from "@/lib/planner";
 import { TaskItem } from "@/components/task-item";
@@ -24,6 +25,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -63,6 +80,8 @@ function TasksPage() {
   const [selectedList, setSelectedList] = useState("all");
   const [listOpen, setListOpen] = useState(false);
   const [listName, setListName] = useState("");
+  const [deletingList, setDeletingList] = useState<TaskList | null>(null);
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
   const { data: lists = [] } = useLists();
   const saveList = useSaveList();
   const deleteList = useDeleteList();
@@ -138,27 +157,36 @@ function TasksPage() {
           Todas as listas
         </Button>
         {lists.map((l) => (
-          <div key={l.id} className="group flex shrink-0 items-center">
+          <div key={l.id} className="flex shrink-0 items-center">
             <Button
               size="sm"
               variant={selectedList === l.id ? "default" : "outline"}
+              className="rounded-r-none pr-3"
               onClick={() => setSelectedList(l.id)}
             >
               <span className="size-2 rounded-full" style={{ background: l.color }} />
               {l.name}
             </Button>
-            <button
-              className="-ml-7 mr-1 hidden rounded p-1 text-muted-foreground hover:text-destructive group-hover:block"
-              aria-label={`Excluir lista ${l.name}`}
-              onClick={() => {
-                if (confirm(`Excluir a lista “${l.name}”? As tarefas ficarão sem lista.`)) {
-                  deleteList.mutate(l.id);
-                  setSelectedList("all");
-                }
-              }}
-            >
-              <Trash2 className="size-3" />
-            </button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  size="icon"
+                  variant={selectedList === l.id ? "default" : "outline"}
+                  className="-ml-px size-9 rounded-l-none px-0"
+                  aria-label={`Ações da lista ${l.name}`}
+                >
+                  <MoreHorizontal className="size-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem
+                  className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                  onSelect={() => setDeletingList(l)}
+                >
+                  <Trash2 /> Excluir lista
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         ))}
         <Button size="sm" variant="ghost" onClick={() => setListOpen(true)}>
@@ -228,9 +256,7 @@ function TasksPage() {
             size="sm"
             variant="destructive"
             disabled={bulk.isPending}
-            onClick={() =>
-              confirm(`Mover ${selected.size} tarefa(s) para a lixeira?`) && applyBulk("delete")
-            }
+            onClick={() => setBulkDeleteOpen(true)}
           >
             <Trash2 /> Excluir
           </Button>
@@ -260,6 +286,55 @@ function TasksPage() {
         </section>
       )}
       <TaskDialog open={open} onOpenChange={setOpen} task={editing} />
+      <AlertDialog open={bulkDeleteOpen} onOpenChange={setBulkDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Mover {selected.size} tarefa(s) para a lixeira?</AlertDialogTitle>
+            <AlertDialogDescription>
+              As tarefas selecionadas e suas subtarefas poderão ser restauradas durante 30 dias.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={bulk.isPending}
+              onClick={() => applyBulk("delete")}
+            >
+              <Trash2 /> Mover para a lixeira
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog
+        open={Boolean(deletingList)}
+        onOpenChange={(isOpen) => !isOpen && setDeletingList(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir lista “{deletingList?.name}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              A lista será excluída, mas suas tarefas serão preservadas e ficarão disponíveis em
+              “Todas as listas”. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteList.isPending}
+              onClick={() => {
+                if (!deletingList) return;
+                deleteList.mutate(deletingList.id);
+                if (selectedList === deletingList.id) setSelectedList("all");
+                setDeletingList(null);
+              }}
+            >
+              <Trash2 /> Excluir lista
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       <Dialog open={listOpen} onOpenChange={setListOpen}>
         <DialogContent>
           <DialogHeader>

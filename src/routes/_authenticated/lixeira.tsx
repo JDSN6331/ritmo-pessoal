@@ -1,10 +1,21 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Clock3, RotateCcw, Trash2 } from "lucide-react";
 import { useEmptyTrash, useRestoreTask, useTrash } from "@/lib/data";
 import { Empty, PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 export const Route = createFileRoute("/_authenticated/lixeira")({
   head: () => ({ meta: [{ title: "Lixeira — Ritmo" }] }),
@@ -15,6 +26,7 @@ function TrashPage() {
   const { data: tasks = [], isLoading } = useTrash();
   const restore = useRestoreTask();
   const empty = useEmptyTrash();
+  const [emptyOpen, setEmptyOpen] = useState(false);
   const roots = tasks.filter(
     (task) => !task.parent_id || !tasks.some((candidate) => candidate.id === task.parent_id),
   );
@@ -29,9 +41,7 @@ function TrashPage() {
             <Button
               variant="destructive"
               disabled={empty.isPending}
-              onClick={() =>
-                confirm("Esvaziar a lixeira? Esta ação não pode ser desfeita.") && empty.mutate({})
-              }
+              onClick={() => setEmptyOpen(true)}
             >
               <Trash2 /> Esvaziar lixeira
             </Button>
@@ -76,6 +86,28 @@ function TrashPage() {
           <Empty>A lixeira está vazia.</Empty>
         )}
       </div>
+      <AlertDialog open={emptyOpen} onOpenChange={setEmptyOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Esvaziar a lixeira?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {tasks.length}{" "}
+              {tasks.length === 1 ? "tarefa será excluída" : "tarefas serão excluídas"}
+              definitivamente. Esta ação não pode ser desfeita.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={empty.isPending}
+              onClick={() => empty.mutate({})}
+            >
+              <Trash2 /> Excluir definitivamente
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
