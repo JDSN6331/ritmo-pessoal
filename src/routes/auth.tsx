@@ -1,5 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
+import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { api, type User } from "@/lib/api";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,7 @@ function AuthPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -76,15 +78,28 @@ function AuthPage() {
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="password">Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                autoComplete={mode === "in" ? "current-password" : "new-password"}
-                required
-                minLength={6}
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-              />
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPassword ? "text" : "password"}
+                  autoComplete={mode === "in" ? "current-password" : "new-password"}
+                  required
+                  minLength={6}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pr-11"
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 flex w-11 items-center justify-center text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary"
+                  aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                  aria-pressed={showPassword}
+                  title={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                  onClick={() => setShowPassword((visible) => !visible)}
+                >
+                  {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                </button>
+              </div>
             </div>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Aguarde…" : mode === "in" ? "Entrar" : "Criar conta"}
