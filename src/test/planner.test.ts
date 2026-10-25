@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { goalProgress, habitStreak, isOverdue, nextDueDate } from "@/lib/planner";
+import { goalProgress, groupTasks, habitStreak, isOverdue, nextDueDate } from "@/lib/planner";
 
 describe("recorrência", () => {
-  it("diária a cada 2 dias", () => expect(nextDueDate("2026-10-24", "daily", 2)).toBe("2026-10-26"));
+  it("diária a cada 2 dias", () =>
+    expect(nextDueDate("2026-10-24", "daily", 2)).toBe("2026-10-26"));
   it("semanal", () => expect(nextDueDate("2026-10-24", "weekly")).toBe("2026-10-31"));
   it("mensal no fim do mês", () => expect(nextDueDate("2026-01-31", "monthly")).toBe("2026-02-28"));
   it("anual", () => expect(nextDueDate("2026-10-24", "yearly")).toBe("2027-10-24"));
@@ -14,8 +15,23 @@ describe("atraso", () => {
     expect(isOverdue({ due_date: "2026-10-23", status: "pending" }, "2026-10-24")).toBe(true));
   it("concluída nunca é atrasada", () =>
     expect(isOverdue({ due_date: "2026-10-01", status: "done" }, "2026-10-24")).toBe(false));
+  it("marcada como não feita deixa de ser tratada como atrasada", () =>
+    expect(isOverdue({ due_date: "2026-10-01", status: "not_done" }, "2026-10-24")).toBe(false));
   it("vencendo hoje não é atrasada", () =>
     expect(isOverdue({ due_date: "2026-10-24", status: "in_progress" }, "2026-10-24")).toBe(false));
+});
+
+describe("hierarquia de tarefas", () => {
+  const parent = { id: "parent", parent_id: null, title: "Principal" };
+  const child = { id: "child", parent_id: "parent", title: "Subtarefa" };
+
+  it("mantém uma subtarefa filtrada dentro da tarefa principal", () => {
+    expect(groupTasks([parent, child], [child])).toEqual([{ task: parent, subtasks: [child] }]);
+  });
+
+  it("inclui as subtarefas quando a tarefa principal está visível", () => {
+    expect(groupTasks([parent, child], [parent])).toEqual([{ task: parent, subtasks: [child] }]);
+  });
 });
 
 describe("sequência de hábitos", () => {

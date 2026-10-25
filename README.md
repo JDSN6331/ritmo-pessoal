@@ -1,24 +1,42 @@
 # Ritmo Pessoal
 
-Bom dia, tudo bem? Gostaria que você criasse um aplicativo de gestão de tarefas pessoais. A ideia é que o usuário possa registrar tarefas, hábitos e metas. Precisa ter recorrência, datas, periodicidade, gestão de tarefas concluídas, em andamento e atraso, etc.
+Aplicação de produtividade para tarefas, subtarefas, listas, hábitos, metas e análises. Inclui autenticação própria, gestão administrativa de usuários, calendário mensal/semanal/diário e instalação como PWA.
 
-This project was built with [Lovable](https://lovable.dev).
+## Desenvolvimento local (SQLite)
 
-## Build with Lovable
-
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/b7467c82-8ac5-4e30-8ef1-8ce94daaae64).
-
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
-
-## Development
-
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Requisitos: Node.js 22.5 ou superior (o projeto usa o módulo SQLite nativo do Node).
 
 ```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
+npm install
 npm run dev
 ```
+
+Sem `DATABASE_URL`, o banco é criado automaticamente em `data/ritmo.sqlite`. O primeiro usuário cadastrado recebe o perfil de administrador e as listas **Pessoal**, **Rotina** e **Trabalho**.
+
+## Produção (PostgreSQL)
+
+Defina as variáveis abaixo e gere o build:
+
+```sh
+DATABASE_URL=postgresql://usuario:senha@servidor:5432/ritmo
+NODE_ENV=production
+npm run build
+node .output/server/index.mjs
+```
+
+As tabelas e índices são inicializados automaticamente. Em produção, use uma conexão PostgreSQL com TLS e mantenha `DATABASE_URL` somente no servidor.
+
+## Validação
+
+```sh
+npm test
+npm run lint
+npx tsc --noEmit
+npm run build
+```
+
+## PWA
+
+O service worker é registrado no build de produção. Em navegadores compatíveis, use “Instalar aplicativo” depois de servir a aplicação via HTTPS (localhost também é aceito para desenvolvimento).
+
+Este projeto permanece compatível com o fluxo do [Lovable](https://lovable.dev); evite reescrever o histórico Git publicado.

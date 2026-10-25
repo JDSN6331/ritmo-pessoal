@@ -103,10 +103,24 @@
     color: var(--color-foreground);
     font-family: var(--font-sans);
     -webkit-font-smoothing: antialiased;
+    min-width: 320px;
+    overscroll-behavior-y: none;
   }
-  h1, h2, h3, h4 {
+  h1,
+  h2,
+  h3,
+  h4 {
     font-family: var(--font-display);
     letter-spacing: -0.02em;
+  }
+}
+
+@media (display-mode: standalone) {
+  body {
+    padding-top: env(safe-area-inset-top);
+  }
+  nav.fixed {
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
   }
 }
 

@@ -1,7 +1,7 @@
 import { addDays, addMonths, addWeeks, addYears, format, parseISO, subDays } from "date-fns";
 
 export type Recurrence = "none" | "daily" | "weekly" | "monthly" | "yearly";
-export type TaskStatus = "pending" | "in_progress" | "done";
+export type TaskStatus = "pending" | "in_progress" | "done" | "not_done";
 
 export const RECURRENCE_LABEL: Record<Recurrence, string> = {
   none: "Não repete",
@@ -30,16 +30,40 @@ export function nextDueDate(due: string, recurrence: Recurrence, interval = 1): 
   return toISODate(next);
 }
 
-/** A task is overdue when it has a past due date and is not done. */
+/** A task becomes overdue on the day after its due date while it is still actionable. */
 export function isOverdue(t: { due_date: string | null; status: string }, today = todayISO()) {
-  return !!t.due_date && t.status !== "done" && t.due_date < today;
+  return !!t.due_date && !["done", "not_done"].includes(t.status) && t.due_date < today;
 }
 
-export type DisplayStatus = "done" | "overdue" | "in_progress" | "pending";
-export function displayStatus(t: { due_date: string | null; status: string }, today = todayISO()): DisplayStatus {
+export type DisplayStatus = "done" | "not_done" | "overdue" | "in_progress" | "pending";
+export function displayStatus(
+  t: { due_date: string | null; status: string },
+  today = todayISO(),
+): DisplayStatus {
   if (t.status === "done") return "done";
+  if (t.status === "not_done") return "not_done";
   if (isOverdue(t, today)) return "overdue";
   return t.status === "in_progress" ? "in_progress" : "pending";
+}
+
+/** Keeps every visible subtask inside its main task instead of rendering it as a loose item. */
+export function groupTasks<T extends { id: string; parent_id: string | null }>(
+  allTasks: T[],
+  visibleTasks: T[] = allTasks,
+) {
+  const visibleIds = new Set(visibleTasks.map((task) => task.id));
+  const rootIds = new Set(visibleTasks.map((task) => task.parent_id ?? task.id));
+  return [...rootIds]
+    .map((rootId) => allTasks.find((task) => task.id === rootId && !task.parent_id))
+    .filter((task): task is T => Boolean(task))
+    .map((task) => ({
+      task,
+      subtasks: allTasks.filter(
+        (candidate) =>
+          candidate.parent_id === task.id &&
+          (visibleIds.has(task.id) || visibleIds.has(candidate.id)),
+      ),
+    }));
 }
 
 /** Whether a habit is scheduled on a given date (days_of_week uses 0 = Sunday). */

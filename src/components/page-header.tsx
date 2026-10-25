@@ -1,6 +1,14 @@
 import type { ReactNode } from "react";
 
-export function PageHeader({ title, subtitle, action }: { title: string; subtitle?: string; action?: ReactNode }) {
+export function PageHeader({
+  title,
+  subtitle,
+  action,
+}: {
+  title: string;
+  subtitle?: string;
+  action?: ReactNode;
+}) {
   return (
     <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
       <div>
@@ -13,5 +21,9 @@ export function PageHeader({ title, subtitle, action }: { title: string; subtitl
 }
 
 export function Empty({ children }: { children: ReactNode }) {
-  return <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">{children}</div>;
+  return (
+    <div className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">
+      {children}
+    </div>
+  );
 }

@@ -1,0 +1,9 @@
+.git
+.output
+.tanstack
+.vinxi
+.nitro
+node_modules
+data
+.env
+*.log

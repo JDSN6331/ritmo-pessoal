@@ -1,186 +1,125 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
-import type { Database } from "@/integrations/supabase/types";
-import { nextDueDate, type Recurrence } from "@/lib/planner";
+import {
+  api,
+  type Goal,
+  type Habit,
+  type HabitLog,
+  type Task,
+  type TaskList,
+  type User,
+} from "@/lib/api";
 
-export type Task = Database["public"]["Tables"]["tasks"]["Row"];
-export type TaskInsert = Database["public"]["Tables"]["tasks"]["Insert"];
-export type Habit = Database["public"]["Tables"]["habits"]["Row"];
-export type HabitInsert = Database["public"]["Tables"]["habits"]["Insert"];
-export type HabitLog = Database["public"]["Tables"]["habit_logs"]["Row"];
-export type Goal = Database["public"]["Tables"]["goals"]["Row"];
-export type GoalInsert = Database["public"]["Tables"]["goals"]["Insert"];
+export type { Goal, Habit, HabitLog, Task, TaskList, User };
+export type TaskInsert = Partial<Task> & Pick<Task, "title">;
+export type SubtaskDraft = { id?: string; title: string };
+export type HabitInsert = Partial<Habit> & Pick<Habit, "title">;
+export type GoalInsert = Partial<Goal> & Pick<Goal, "title">;
+export type Dashboard = {
+  user: User;
+  tasks: Task[];
+  trash: Task[];
+  habits: Habit[];
+  logs: HabitLog[];
+  goals: Goal[];
+  lists: TaskList[];
+};
 
 const fail = (e: Error) => toast.error(e.message);
+export const dashboardKey = ["dashboard"] as const;
+
+export function useDashboard() {
+  return useQuery({
+    queryKey: dashboardKey,
+    queryFn: () => api<Dashboard>("dashboard"),
+    staleTime: 15_000,
+  });
+}
+
+function useAction<T extends Record<string, unknown>>(action: string, success?: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: T) => api(action, payload),
+    onSuccess: () => {
+      if (success) toast.success(success);
+      qc.invalidateQueries({ queryKey: dashboardKey });
+    },
+    onError: fail,
+  });
+}
 
 export function useTasks() {
-  return useQuery({
-    queryKey: ["tasks"],
-    queryFn: async () => {
-      const { data, error } = await supabase
-        .from("tasks")
-        .select("*")
-        .order("due_date", { ascending: true, nullsFirst: false })
-        .order("created_at");
-      if (error) throw error;
-      return data;
-    },
-  });
+  const q = useDashboard();
+  return { ...q, data: q.data?.tasks };
 }
-
-export function useSaveTask() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (t: TaskInsert & { id?: string }) => {
-      const { id, ...rest } = t;
-      const { error } = id
-        ? await supabase.from("tasks").update(rest).eq("id", id)
-        : await supabase.from("tasks").insert(rest);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
-    onError: fail,
-  });
+export function useTrash() {
+  const q = useDashboard();
+  return { ...q, data: q.data?.trash };
 }
-
+export const useSaveTask = () =>
+  useAction<TaskInsert & { id?: string; subtasks?: SubtaskDraft[] }>("task.save", "Tarefa salva");
 export function useSetTaskStatus() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ task, status }: { task: Task; status: Task["status"] }) => {
-      const { error } = await supabase
-        .from("tasks")
-        .update({ status, completed_at: status === "done" ? new Date().toISOString() : null })
-        .eq("id", task.id);
-      if (error) throw error;
-      // Concluding a recurring task schedules its next occurrence.
-      if (status === "done" && task.status !== "done" && task.due_date) {
-        const next = nextDueDate(task.due_date, task.recurrence as Recurrence, task.recurrence_interval);
-        if (next) {
-          const { error: e2 } = await supabase.from("tasks").insert({
-            title: task.title,
-            description: task.description,
-            priority: task.priority,
-            recurrence: task.recurrence,
-            recurrence_interval: task.recurrence_interval,
-            due_date: next,
-          });
-          if (e2) throw e2;
-          return next;
-        }
-      }
-      return null;
-    },
-    onSuccess: (next) => {
-      if (next) toast.success("Próxima ocorrência agendada");
-      qc.invalidateQueries({ queryKey: ["tasks"] });
-    },
-    onError: fail,
-  });
+  const action = useAction<{ id: string; status: string }>("task.status");
+  return {
+    ...action,
+    mutate: (
+      { task, status }: { task: Task; status: Task["status"] },
+      options?: Parameters<typeof action.mutate>[1],
+    ) => action.mutate({ id: task.id, status }, options),
+  };
 }
-
 export function useDeleteTask() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("tasks").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["tasks"] }),
-    onError: fail,
-  });
+  const action = useAction<{ id: string }>("task.delete", "Tarefa movida para a lixeira");
+  return { ...action, mutate: (id: string) => action.mutate({ id }) };
+}
+export function useRestoreTask() {
+  const action = useAction<{ id: string }>("task.restore", "Tarefa restaurada");
+  return { ...action, mutate: (id: string) => action.mutate({ id }) };
+}
+export const useEmptyTrash = () =>
+  useAction<Record<string, never>>("trash.empty", "Lixeira esvaziada");
+export const useBulkTasks = () =>
+  useAction<{ ids: string[]; operation: string; value?: string | null }>(
+    "task.bulk",
+    "Tarefas atualizadas",
+  );
+
+export function useLists() {
+  const q = useDashboard();
+  return { ...q, data: q.data?.lists };
+}
+export const useSaveList = () =>
+  useAction<Partial<TaskList> & Pick<TaskList, "name">>("list.save", "Lista salva");
+export function useDeleteList() {
+  const action = useAction<{ id: string }>("list.delete", "Lista excluída");
+  return { ...action, mutate: (id: string) => action.mutate({ id }) };
 }
 
 export function useHabits() {
-  return useQuery({
-    queryKey: ["habits"],
-    queryFn: async () => {
-      const [h, l] = await Promise.all([
-        supabase.from("habits").select("*").order("created_at"),
-        supabase.from("habit_logs").select("*"),
-      ]);
-      if (h.error) throw h.error;
-      if (l.error) throw l.error;
-      return { habits: h.data, logs: l.data };
-    },
-  });
+  const q = useDashboard();
+  return { ...q, data: q.data ? { habits: q.data.habits, logs: q.data.logs } : undefined };
 }
-
-export function useSaveHabit() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (h: HabitInsert & { id?: string }) => {
-      const { id, ...rest } = h;
-      const { error } = id
-        ? await supabase.from("habits").update(rest).eq("id", id)
-        : await supabase.from("habits").insert(rest);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["habits"] }),
-    onError: fail,
-  });
-}
-
+export const useSaveHabit = () =>
+  useAction<HabitInsert & { id?: string }>("habit.save", "Hábito salvo");
 export function useDeleteHabit() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("habits").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["habits"] }),
-    onError: fail,
-  });
+  const action = useAction<{ id: string }>("habit.delete", "Hábito excluído");
+  return { ...action, mutate: (id: string) => action.mutate({ id }) };
 }
-
 export function useToggleHabit() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async ({ habitId, date, done }: { habitId: string; date: string; done: boolean }) => {
-      const { error } = done
-        ? await supabase.from("habit_logs").delete().eq("habit_id", habitId).eq("log_date", date)
-        : await supabase.from("habit_logs").insert({ habit_id: habitId, log_date: date });
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["habits"] }),
-    onError: fail,
-  });
+  const action = useAction<{ habit_id: string; log_date: string }>("habit.toggle");
+  return {
+    ...action,
+    mutate: ({ habitId, date }: { habitId: string; date: string; done: boolean }) =>
+      action.mutate({ habit_id: habitId, log_date: date }),
+  };
 }
 
 export function useGoals() {
-  return useQuery({
-    queryKey: ["goals"],
-    queryFn: async () => {
-      const { data, error } = await supabase.from("goals").select("*").order("created_at");
-      if (error) throw error;
-      return data;
-    },
-  });
+  const q = useDashboard();
+  return { ...q, data: q.data?.goals };
 }
-
-export function useSaveGoal() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (g: GoalInsert & { id?: string }) => {
-      const { id, ...rest } = g;
-      const { error } = id
-        ? await supabase.from("goals").update(rest).eq("id", id)
-        : await supabase.from("goals").insert(rest);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
-    onError: fail,
-  });
-}
-
+export const useSaveGoal = () => useAction<GoalInsert & { id?: string }>("goal.save", "Meta salva");
 export function useDeleteGoal() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: async (id: string) => {
-      const { error } = await supabase.from("goals").delete().eq("id", id);
-      if (error) throw error;
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["goals"] }),
-    onError: fail,
-  });
+  const action = useAction<{ id: string }>("goal.delete", "Meta excluída");
+  return { ...action, mutate: (id: string) => action.mutate({ id }) };
 }
