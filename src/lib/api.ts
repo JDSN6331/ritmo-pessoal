@@ -279,6 +279,15 @@ export const appApi = createServerFn({ method: "POST" })
         if (!parent) throw new Error("Tarefa principal não encontrada.");
         if (parent.parent_id)
           throw new Error("Subtarefas só podem ser vinculadas a uma tarefa principal.");
+        if (p.id) {
+          await run("UPDATE tasks SET title=? WHERE id=? AND parent_id=? AND user_id=?", [
+            text(p.title, 200),
+            id,
+            parentId,
+            user.id,
+          ]);
+          return { ok: true, id };
+        }
       }
       const values = [
         p.list_id ? text(p.list_id, 80) : null,

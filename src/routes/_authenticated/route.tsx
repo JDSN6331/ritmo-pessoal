@@ -28,7 +28,7 @@ export const Route = createFileRoute("/_authenticated")({
 const nav = [
   { to: "/hoje", label: "Hoje", icon: Sun },
   { to: "/tarefas", label: "Tarefas", icon: ListTodo },
-  { to: "/nao-feitas", label: "Não feita", icon: CircleX },
+  { to: "/nao-feitas", label: "Não Feita", icon: CircleX },
   { to: "/calendario", label: "Calendário", icon: CalendarDays },
   { to: "/habitos", label: "Hábitos", icon: Flame },
   { to: "/metas", label: "Metas", icon: Target },
@@ -96,12 +96,12 @@ function AppLayout() {
           <Outlet />
         </div>
       </main>
-      <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-start gap-2 overflow-x-auto border-t bg-sidebar px-2 py-2 md:hidden">
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex justify-start gap-1 overflow-x-auto border-t bg-sidebar px-1 py-2 md:hidden">
         {nav.map((n) => (
           <Link
             key={n.to}
             to={n.to}
-            className="flex min-w-14 flex-1 flex-col items-center gap-0.5 px-2 text-[11px] text-muted-foreground"
+            className="flex min-w-[4.25rem] flex-1 flex-col items-center gap-1 whitespace-nowrap px-1 text-[11px] leading-none text-muted-foreground"
             activeProps={{ className: "text-primary" }}
           >
             <n.icon className="size-5" />
@@ -111,7 +111,7 @@ function AppLayout() {
         {user.role === "admin" && (
           <Link
             to="/usuarios"
-            className="flex min-w-14 flex-1 flex-col items-center gap-0.5 px-2 text-[11px] text-muted-foreground"
+            className="flex min-w-[4.25rem] flex-1 flex-col items-center gap-1 whitespace-nowrap px-1 text-[11px] leading-none text-muted-foreground"
             activeProps={{ className: "text-primary" }}
           >
             <Settings className="size-5" />

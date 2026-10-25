@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import {
   Dialog,
@@ -32,6 +32,7 @@ type SubtaskField = SubtaskDraft & { key: string };
 
 export function TaskDialog({ open, onOpenChange, task, defaultDate }: Props) {
   const save = useSaveTask();
+  const initializedFor = useRef<string | null>(null);
   const [subtasks, setSubtasks] = useState<SubtaskField[]>([]);
   const [f, setF] = useState({
     title: "",
@@ -48,7 +49,13 @@ export function TaskDialog({ open, onOpenChange, task, defaultDate }: Props) {
   const { data: tasks = [] } = useTasks();
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) {
+      initializedFor.current = null;
+      return;
+    }
+    const formKey = task?.id ?? `new:${defaultDate ?? ""}`;
+    if (initializedFor.current === formKey) return;
+    initializedFor.current = formKey;
     setF({
       title: task?.title ?? "",
       description: task?.description ?? "",
@@ -76,6 +83,13 @@ export function TaskDialog({ open, onOpenChange, task, defaultDate }: Props) {
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!f.title.trim()) return;
+    if (task?.parent_id) {
+      save.mutate(
+        { id: task.id, parent_id: task.parent_id, title: f.title.trim() },
+        { onSuccess: () => onOpenChange(false) },
+      );
+      return;
+    }
     if (f.recurrence !== "none" && !f.due_date) return;
     save.mutate(
       {
@@ -98,6 +112,42 @@ export function TaskDialog({ open, onOpenChange, task, defaultDate }: Props) {
       { onSuccess: () => onOpenChange(false) },
     );
   };
+
+  const addSubtask = () =>
+    setSubtasks((current) => [...current, { key: crypto.randomUUID(), title: "" }]);
+
+  if (task?.parent_id) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Editar subtarefa</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={submit} className="space-y-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="subtask-title">Nome da subtarefa</Label>
+              <Input
+                id="subtask-title"
+                autoFocus
+                maxLength={200}
+                value={f.title}
+                onChange={(event) => setF({ ...f, title: event.target.value })}
+                required
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={save.isPending}>
+                Salvar nome
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -134,14 +184,7 @@ export function TaskDialog({ open, onOpenChange, task, defaultDate }: Props) {
                     Cadastre as etapas que fazem parte desta tarefa.
                   </p>
                 </div>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={() =>
-                    setSubtasks((current) => [...current, { key: crypto.randomUUID(), title: "" }])
-                  }
-                >
+                <Button type="button" size="sm" variant="outline" onClick={addSubtask}>
                   <Plus /> Adicionar
                 </Button>
               </div>
@@ -149,7 +192,7 @@ export function TaskDialog({ open, onOpenChange, task, defaultDate }: Props) {
                 <button
                   type="button"
                   className="w-full rounded-lg border border-dashed px-3 py-3 text-sm text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
-                  onClick={() => setSubtasks([{ key: crypto.randomUUID(), title: "" }])}
+                  onClick={addSubtask}
                 >
                   + Adicionar a primeira subtarefa
                 </button>
@@ -280,7 +323,7 @@ export function TaskDialog({ open, onOpenChange, task, defaultDate }: Props) {
                   <SelectItem value="pending">Pendente</SelectItem>
                   <SelectItem value="in_progress">Em andamento</SelectItem>
                   <SelectItem value="done">Concluída</SelectItem>
-                  <SelectItem value="not_done">Não feita</SelectItem>
+                  <SelectItem value="not_done">Não Feita</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -188,10 +188,10 @@ function TasksPage() {
                 <Button
                   size="icon"
                   variant={selectedList === l.id ? "default" : "outline"}
-                  className="-ml-px size-9 rounded-l-none px-0"
+                  className="-ml-px h-8 w-7 rounded-l-none px-0 shadow-none"
                   aria-label={`Ações da lista ${l.name}`}
                 >
-                  <MoreHorizontal className="size-4" />
+                  <MoreHorizontal className="size-3.5" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
@@ -250,7 +250,7 @@ function TasksPage() {
               <SelectItem value="pending">Pendente</SelectItem>
               <SelectItem value="in_progress">Em andamento</SelectItem>
               <SelectItem value="done">Concluída</SelectItem>
-              <SelectItem value="not_done">Não feita</SelectItem>
+              <SelectItem value="not_done">Não Feita</SelectItem>
             </SelectContent>
           </Select>
           <Select onValueChange={(value) => applyBulk("priority", value)}>
@@ -303,7 +303,7 @@ function TasksPage() {
       {notDone.length > 0 && (
         <section className="mt-8 rounded-2xl border border-orange-500/20 bg-orange-500/[0.03] p-4">
           <div className="mb-3">
-            <h2 className="font-display text-lg font-semibold">Não feitas</h2>
+            <h2 className="font-display text-lg font-semibold">Não Feitas</h2>
             <p className="text-sm text-muted-foreground">
               Tarefas encerradas sem conclusão, preservadas para revisão e planejamento.
             </p>
