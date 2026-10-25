@@ -129,11 +129,12 @@ export function TaskDialog({ open, onOpenChange, task, defaultDate }: Props) {
               <Input
                 id="subtask-title"
                 autoFocus
-                maxLength={200}
+                maxLength={500}
                 value={f.title}
                 onChange={(event) => setF({ ...f, title: event.target.value })}
                 required
               />
+              <p className="text-right text-xs text-muted-foreground">{f.title.length}/500</p>
             </div>
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>
@@ -203,20 +204,26 @@ export function TaskDialog({ open, onOpenChange, task, defaultDate }: Props) {
                       <span className="w-5 text-center text-xs text-muted-foreground">
                         {index + 1}
                       </span>
-                      <Input
-                        aria-label={`Subtarefa ${index + 1}`}
-                        placeholder="Título da subtarefa"
-                        value={subtask.title}
-                        onChange={(event) =>
-                          setSubtasks((current) =>
-                            current.map((item) =>
-                              item.key === subtask.key
-                                ? { ...item, title: event.target.value }
-                                : item,
-                            ),
-                          )
-                        }
-                      />
+                      <div className="min-w-0 flex-1">
+                        <Input
+                          aria-label={`Subtarefa ${index + 1}`}
+                          placeholder="Título da subtarefa"
+                          maxLength={500}
+                          value={subtask.title}
+                          onChange={(event) =>
+                            setSubtasks((current) =>
+                              current.map((item) =>
+                                item.key === subtask.key
+                                  ? { ...item, title: event.target.value }
+                                  : item,
+                              ),
+                            )
+                          }
+                        />
+                        <p className="mt-1 text-right text-[11px] text-muted-foreground">
+                          {subtask.title.length}/500
+                        </p>
+                      </div>
                       <Button
                         type="button"
                         size="icon"

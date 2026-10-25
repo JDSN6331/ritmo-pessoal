@@ -1,5 +1,6 @@
 import { createFileRoute, Link, Outlet, redirect, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import {
   BarChart3,
   CalendarDays,
@@ -40,12 +41,18 @@ function AppLayout() {
   const { user } = Route.useRouteContext();
   const qc = useQueryClient();
   const navigate = useNavigate();
+  const [signingOut, setSigningOut] = useState(false);
 
   const signOut = async () => {
-    await qc.cancelQueries();
-    qc.clear();
-    await api("logout");
-    navigate({ to: "/auth", replace: true });
+    setSigningOut(true);
+    try {
+      await qc.cancelQueries();
+      qc.clear();
+      await api("logout");
+      navigate({ to: "/auth", replace: true });
+    } finally {
+      setSigningOut(false);
+    }
   };
 
   return (
@@ -92,7 +99,21 @@ function AppLayout() {
         </div>
       </aside>
       <main className="min-w-0 flex-1 pb-24 md:pb-0">
-        <div className="mx-auto max-w-5xl px-4 py-8 md:px-8">
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b bg-background/95 px-4 backdrop-blur md:hidden">
+          <span className="font-display text-lg font-bold">
+            ritmo<span className="text-primary">.</span>
+          </span>
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={signingOut}
+            onClick={signOut}
+            aria-label="Sair da conta"
+          >
+            <LogOut /> {signingOut ? "Saindo..." : "Sair"}
+          </Button>
+        </header>
+        <div className="mx-auto max-w-5xl px-4 py-5 md:px-8 md:py-8">
           <Outlet />
         </div>
       </main>

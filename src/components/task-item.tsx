@@ -10,15 +10,25 @@ import {
   CornerDownRight,
   Pencil,
   Play,
+  Plus,
   Repeat,
   RotateCcw,
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { displayStatus, RECURRENCE_LABEL, type Recurrence } from "@/lib/planner";
-import { useDeleteTask, useSetTaskStatus, type Task } from "@/lib/data";
+import { useDeleteTask, useSaveTask, useSetTaskStatus, type Task } from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -54,6 +64,14 @@ type Props = {
 
 export function TaskItem({ task, subtasks = [], onEdit, selectedIds, onSelectedChange }: Props) {
   const [subtasksExpanded, setSubtasksExpanded] = useState(true);
+  const [addSubtaskOpen, setAddSubtaskOpen] = useState(false);
+  const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
+  const saveTask = useSaveTask();
+
+  const openAddSubtask = () => {
+    setNewSubtaskTitle("");
+    setAddSubtaskOpen(true);
+  };
 
   return (
     <div
@@ -68,26 +86,49 @@ export function TaskItem({ task, subtasks = [], onEdit, selectedIds, onSelectedC
         selected={selectedIds?.has(task.id)}
         onSelectedChange={onSelectedChange}
       />
-      {subtasks.length > 0 && (
+      {(subtasks.length > 0 || !onSelectedChange) && (
         <div className="border-t bg-muted/[0.12] px-3 pb-2">
-          <button
-            type="button"
-            className="flex w-full items-center gap-1.5 px-1 py-2 text-left text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-            aria-expanded={subtasksExpanded}
-            onClick={() => setSubtasksExpanded((expanded) => !expanded)}
-          >
-            {subtasksExpanded ? (
-              <ChevronDown className="size-3.5" />
-            ) : (
-              <ChevronRight className="size-3.5" />
-            )}
-            <CornerDownRight className="size-3.5" />
-            {subtasks.length} {subtasks.length === 1 ? "subtarefa" : "subtarefas"}
-            <span className="ml-auto font-normal">
-              {subtasksExpanded ? "Recolher" : "Expandir"}
-            </span>
-          </button>
-          {subtasksExpanded && (
+          {subtasks.length > 0 ? (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                className="flex min-w-0 flex-1 items-center gap-1.5 px-1 py-2 text-left text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+                aria-expanded={subtasksExpanded}
+                onClick={() => setSubtasksExpanded((expanded) => !expanded)}
+              >
+                {subtasksExpanded ? (
+                  <ChevronDown className="size-3.5" />
+                ) : (
+                  <ChevronRight className="size-3.5" />
+                )}
+                <CornerDownRight className="size-3.5" />
+                {subtasks.length} {subtasks.length === 1 ? "subtarefa" : "subtarefas"}
+                <span className="ml-auto hidden font-normal sm:inline">
+                  {subtasksExpanded ? "Recolher" : "Expandir"}
+                </span>
+              </button>
+              {!onSelectedChange && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 px-2"
+                  onClick={openAddSubtask}
+                >
+                  <Plus /> Adicionar
+                </Button>
+              )}
+            </div>
+          ) : (
+            <button
+              type="button"
+              className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed px-3 py-2 text-xs text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+              onClick={openAddSubtask}
+            >
+              <Plus className="size-3.5" /> Adicionar subtarefa
+            </button>
+          )}
+          {subtasks.length > 0 && subtasksExpanded && (
             <div className="divide-y rounded-lg border bg-background/40">
               {subtasks.map((subtask) => (
                 <TaskRow key={subtask.id} task={subtask} nested onEdit={onEdit} />
@@ -96,6 +137,60 @@ export function TaskItem({ task, subtasks = [], onEdit, selectedIds, onSelectedC
           )}
         </div>
       )}
+      <Dialog
+        open={addSubtaskOpen}
+        onOpenChange={(open) => {
+          setAddSubtaskOpen(open);
+          if (!open) setNewSubtaskTitle("");
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adicionar subtarefa</DialogTitle>
+          </DialogHeader>
+          <form
+            className="space-y-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              const title = newSubtaskTitle.trim();
+              if (!title) return;
+              saveTask.mutate(
+                { title, parent_id: task.id },
+                {
+                  onSuccess: () => {
+                    setNewSubtaskTitle("");
+                    setAddSubtaskOpen(false);
+                    setSubtasksExpanded(true);
+                  },
+                },
+              );
+            }}
+          >
+            <div className="space-y-1.5">
+              <Label htmlFor={`new-subtask-${task.id}`}>Nome da subtarefa</Label>
+              <Input
+                id={`new-subtask-${task.id}`}
+                autoFocus
+                required
+                maxLength={500}
+                value={newSubtaskTitle}
+                onChange={(event) => setNewSubtaskTitle(event.target.value)}
+              />
+              <p className="text-right text-xs text-muted-foreground">
+                {newSubtaskTitle.length}/500
+              </p>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="ghost" onClick={() => setAddSubtaskOpen(false)}>
+                Cancelar
+              </Button>
+              <Button type="submit" disabled={saveTask.isPending || !newSubtaskTitle.trim()}>
+                Adicionar
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -150,12 +245,13 @@ function TaskRow({
             onClick={() => setStatus.mutate({ task, status: done ? "pending" : "done" })}
             className={cn(
               "mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-md border-2 transition-colors",
+              nested && "size-4 rounded-[4px]",
               done
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-muted-foreground/50 hover:border-primary",
             )}
           >
-            {done && <Check className="size-3.5" strokeWidth={3} />}
+            {done && <Check className={cn("size-3.5", nested && "size-3")} strokeWidth={3} />}
           </button>
         )}
         <div className="min-w-0 flex-1">
@@ -168,7 +264,7 @@ function TaskRow({
             <p
               className={cn(
                 "min-w-0 break-words font-medium sm:truncate",
-                nested && "text-sm font-normal",
+                nested && "text-xs font-normal leading-relaxed",
                 done && "text-muted-foreground line-through",
               )}
             >

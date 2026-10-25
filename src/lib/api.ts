@@ -144,10 +144,19 @@ const subtasksSchema = z
   .array(
     z.object({
       id: z.string().min(1).max(80).optional(),
-      title: z.string().trim().min(1).max(200),
+      title: z.string().trim().min(1).max(500),
     }),
   )
   .max(50);
+
+function parseSubtasks(value: unknown) {
+  const result = subtasksSchema.optional().safeParse(value);
+  if (!result.success)
+    throw new Error(
+      "Revise as subtarefas: cada nome pode ter até 500 caracteres e são permitidas até 50 subtarefas.",
+    );
+  return result.data;
+}
 
 export const appApi = createServerFn({ method: "POST" })
   .validator(requestSchema)
@@ -269,7 +278,7 @@ export const appApi = createServerFn({ method: "POST" })
     if (data.action === "task.save") {
       const id = p.id ? text(p.id, 80) : uid();
       const parentId = p.parent_id ? text(p.parent_id, 80) : null;
-      const subtasks = parentId ? undefined : subtasksSchema.optional().parse(p.subtasks);
+      const subtasks = parentId ? undefined : parseSubtasks(p.subtasks);
       if (parentId) {
         if (parentId === id) throw new Error("Uma tarefa não pode ser subtarefa dela mesma.");
         const parent = await one<Task>(
@@ -281,13 +290,33 @@ export const appApi = createServerFn({ method: "POST" })
           throw new Error("Subtarefas só podem ser vinculadas a uma tarefa principal.");
         if (p.id) {
           await run("UPDATE tasks SET title=? WHERE id=? AND parent_id=? AND user_id=?", [
-            text(p.title, 200),
+            text(p.title, 500),
             id,
             parentId,
             user.id,
           ]);
           return { ok: true, id };
         }
+        await run(
+          "INSERT INTO tasks (id,user_id,list_id,parent_id,title,description,due_date,due_time,priority,status,recurrence,recurrence_interval,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+          [
+            id,
+            user.id,
+            parent.list_id,
+            parentId,
+            text(p.title, 500),
+            null,
+            parent.due_date,
+            parent.due_time,
+            parent.priority,
+            "pending",
+            "none",
+            1,
+            null,
+            now(),
+          ],
+        );
+        return { ok: true, id };
       }
       const values = [
         p.list_id ? text(p.list_id, 80) : null,
