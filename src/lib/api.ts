@@ -69,6 +69,8 @@ const requestSchema = z.object({
 });
 const emailSchema = z.string().trim().toLowerCase().email();
 const sessionCookie = "ritmo_session";
+const sessionIdleMs = 30 * 60 * 1000;
+const persistentSessionSeconds = 30 * 24 * 60 * 60;
 const colors = ["#a3e635", "#38bdf8", "#f59e0b"];
 type Payload = Partial<
   Record<
@@ -98,6 +100,7 @@ type Payload = Partial<
     | "ids"
     | "operation"
     | "value"
+    | "remember"
     | "subtasks",
     unknown
   >
@@ -126,6 +129,11 @@ async function currentUser() {
   if (!user) {
     await run("DELETE FROM sessions WHERE id = ?", [token]);
     deleteCookie(sessionCookie, { path: "/" });
+  } else {
+    await run("UPDATE sessions SET expires_at = ? WHERE id = ?", [
+      new Date(Date.now() + sessionIdleMs).toISOString(),
+      token,
+    ]);
   }
   return user;
 }
@@ -196,14 +204,13 @@ export const appApi = createServerFn({ method: "POST" })
       await run("INSERT INTO sessions (id,user_id,expires_at) VALUES (?,?,?)", [
         token,
         id,
-        new Date(Date.now() + 30 * 864e5).toISOString(),
+        new Date(Date.now() + sessionIdleMs).toISOString(),
       ]);
       setCookie(sessionCookie, token, {
         path: "/",
         httpOnly: true,
         sameSite: "lax",
         secure: process.env["NODE_ENV"] === "production",
-        maxAge: 30 * 86400,
       });
       return { user: await currentUser() };
     }
@@ -216,18 +223,19 @@ export const appApi = createServerFn({ method: "POST" })
       );
       if (!record || !validPassword(password, record.password_hash))
         throw new Error("E-mail ou senha inválidos.");
+      const remember = z.boolean().parse(p.remember ?? false);
       const token = uid();
       await run("INSERT INTO sessions (id,user_id,expires_at) VALUES (?,?,?)", [
         token,
         record.id,
-        new Date(Date.now() + 30 * 864e5).toISOString(),
+        new Date(Date.now() + sessionIdleMs).toISOString(),
       ]);
       setCookie(sessionCookie, token, {
         path: "/",
         httpOnly: true,
         sameSite: "lax",
         secure: process.env["NODE_ENV"] === "production",
-        maxAge: 30 * 86400,
+        ...(remember ? { maxAge: persistentSessionSeconds } : {}),
       });
       return { user: await currentUser() };
     }
@@ -237,6 +245,7 @@ export const appApi = createServerFn({ method: "POST" })
       deleteCookie(sessionCookie, { path: "/" });
       return { ok: true };
     }
+    if (data.action === "session.touch") return { user: await requireUser() };
 
     const user = await requireUser(data.action.startsWith("admin."));
     if (data.action === "dashboard") {

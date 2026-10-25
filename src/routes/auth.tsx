@@ -4,6 +4,7 @@ import { Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 import { api, type User } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
@@ -24,6 +25,7 @@ function AuthPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [remember, setRemember] = useState(false);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -34,7 +36,12 @@ function AuthPage() {
     e.preventDefault();
     setLoading(true);
     try {
-      await api(mode === "in" ? "login" : "register", { email, password, name });
+      await api(mode === "in" ? "login" : "register", {
+        email,
+        password,
+        name,
+        ...(mode === "in" ? { remember } : {}),
+      });
       await navigate({ to: "/hoje", replace: true });
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Não foi possível entrar.");
@@ -101,6 +108,18 @@ function AuthPage() {
                 </button>
               </div>
             </div>
+            {mode === "in" && (
+              <div className="flex items-center gap-2 py-1">
+                <Checkbox
+                  id="remember"
+                  checked={remember}
+                  onCheckedChange={(checked) => setRemember(checked === true)}
+                />
+                <Label htmlFor="remember" className="cursor-pointer text-sm font-normal">
+                  Manter conectado
+                </Label>
+              </div>
+            )}
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? "Aguarde…" : mode === "in" ? "Entrar" : "Criar conta"}
             </Button>
