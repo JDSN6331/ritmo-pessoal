@@ -117,3 +117,26 @@ export function goalProgressWithSteps(
   if (!steps.length) return goalProgress(current, target);
   return Math.round((steps.filter((step) => step.completed_at).length / steps.length) * 100);
 }
+
+export function goalOverallProgress(
+  current: number,
+  target: number,
+  metricType: "numeric" | "boolean",
+  targets: Array<{
+    current_value: number;
+    target_value: number;
+    metric_type: "numeric" | "boolean";
+  }>,
+) {
+  if (metricType !== "boolean" || targets.length === 0) return goalProgress(current, target);
+  const totalProgress = targets.reduce((sum, item) => {
+    const progress =
+      item.metric_type === "boolean"
+        ? Number(item.current_value) >= 1
+          ? 100
+          : 0
+        : goalProgress(Number(item.current_value), Number(item.target_value));
+    return sum + progress;
+  }, 0);
+  return Math.round(totalProgress / targets.length);
+}

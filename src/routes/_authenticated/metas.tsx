@@ -22,7 +22,7 @@ import {
   type Goal,
   type GoalStepDraft,
 } from "@/lib/data";
-import { goalProgress } from "@/lib/planner";
+import { goalOverallProgress, goalProgress } from "@/lib/planner";
 import { Empty, PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -83,24 +83,25 @@ function GoalsPage() {
         }
       />
       {goals.length === 0 && <Empty>Defina uma meta e acompanhe seu avanço.</Empty>}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid items-start gap-4 md:grid-cols-2">
         {goals.map((g) => {
           const current = Number(g.current_value);
           const total = Number(g.target_value);
           const booleanMetric = g.metric_type === "boolean";
-          const p = booleanMetric ? (current >= 1 ? 100 : 0) : goalProgress(current, total);
+          const p = goalOverallProgress(current, total, g.metric_type, g.steps);
+          const completed = booleanMetric ? current >= 1 : p === 100;
           const left = g.deadline
             ? differenceInCalendarDays(parseISO(g.deadline), new Date())
             : null;
           return (
             <div
               key={g.id}
-              className={cn("rounded-2xl border bg-card p-5", p === 100 && "border-primary/50")}
+              className={cn("rounded-2xl border bg-card p-5", completed && "border-primary/50")}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
                   <h3 className="flex items-center gap-2 font-semibold">
-                    {p === 100 && <Trophy className="size-4 text-primary" />}
+                    {completed && <Trophy className="size-4 text-primary" />}
                     {g.title}
                   </h3>
                   {g.description && (
@@ -245,13 +246,13 @@ function GoalsPage() {
                 <span
                   className={cn(
                     "text-xs",
-                    left !== null && left < 0 && p < 100
+                    left !== null && left < 0 && !completed
                       ? "text-destructive"
                       : "text-muted-foreground",
                   )}
                 >
                   {g.deadline
-                    ? left! < 0 && p < 100
+                    ? left! < 0 && !completed
                       ? `Prazo vencido em ${format(parseISO(g.deadline), "d MMM", { locale: ptBR })}`
                       : `Prazo: ${format(parseISO(g.deadline), "d MMM yyyy", { locale: ptBR })}`
                     : "Sem prazo"}

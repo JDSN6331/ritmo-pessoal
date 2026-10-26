@@ -5,7 +5,7 @@ import { ptBR } from "date-fns/locale";
 import { Check, Plus } from "lucide-react";
 import { useGoals, useHabits, useTasks, useToggleHabit, type Task } from "@/lib/data";
 import {
-  goalProgress,
+  goalOverallProgress,
   groupTasks,
   isHabitDay,
   isOverdue,
@@ -155,7 +155,12 @@ function Today() {
           >
             {goals.length ? (
               goals.slice(0, 4).map((g) => {
-                const p = goalProgress(Number(g.current_value), Number(g.target_value));
+                const p = goalOverallProgress(
+                  Number(g.current_value),
+                  Number(g.target_value),
+                  g.metric_type,
+                  g.steps,
+                );
                 return (
                   <div key={g.id} className="rounded-xl border bg-card p-3">
                     <div className="flex justify-between text-sm">

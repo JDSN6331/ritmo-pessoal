@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   goalProgress,
+  goalOverallProgress,
   goalProgressWithSteps,
   groupTasks,
   habitStreak,
@@ -76,4 +77,20 @@ it("usa as etapas quando a meta possui etapas cadastradas", () => {
       { completed_at: null },
     ]),
   ).toBe(50);
+});
+
+describe("progresso agregado dos alvos", () => {
+  const targets = [
+    { current_value: 1, target_value: 1, metric_type: "boolean" as const },
+    { current_value: 1, target_value: 1, metric_type: "boolean" as const },
+    { current_value: 0, target_value: 1, metric_type: "boolean" as const },
+  ];
+
+  it("calcula os alvos sem concluir automaticamente a meta booleana", () => {
+    expect(goalOverallProgress(0, 1, "boolean", targets)).toBe(67);
+  });
+
+  it("mantém o progresso próprio de uma meta numérica", () => {
+    expect(goalOverallProgress(25, 100, "numeric", targets)).toBe(25);
+  });
 });
