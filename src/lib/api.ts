@@ -68,6 +68,9 @@ export type GoalStep = {
   user_id: string;
   goal_id: string;
   title: string;
+  target_value: number;
+  current_value: number;
+  unit: string;
   completed_at: string | null;
   created_at: string;
 };
@@ -112,7 +115,8 @@ type Payload = Partial<
     | "value"
     | "remember"
     | "subtasks"
-    | "steps",
+    | "steps"
+    | "delta",
     unknown
   >
 >;
@@ -172,6 +176,9 @@ const goalStepsSchema = z
     z.object({
       id: z.string().min(1).max(80).optional(),
       title: z.string().trim().min(1).max(300),
+      target_value: z.coerce.number().positive(),
+      current_value: z.coerce.number().min(0),
+      unit: z.string().trim().min(1).max(20),
     }),
   )
   .max(50);
@@ -676,16 +683,33 @@ export const appApi = createServerFn({ method: "POST" })
         for (const step of steps) {
           if (step.id && existingIds.has(step.id)) {
             keptIds.add(step.id);
-            await run("UPDATE goal_steps SET title=? WHERE id=? AND goal_id=? AND user_id=?", [
-              step.title,
-              step.id,
-              goalId,
-              user.id,
-            ]);
+            await run(
+              "UPDATE goal_steps SET title=?,target_value=?,current_value=?,unit=?,completed_at=? WHERE id=? AND goal_id=? AND user_id=?",
+              [
+                step.title,
+                step.target_value,
+                Math.min(step.current_value, step.target_value),
+                step.unit,
+                step.current_value >= step.target_value ? now() : null,
+                step.id,
+                goalId,
+                user.id,
+              ],
+            );
           } else {
             await run(
-              "INSERT INTO goal_steps (id,user_id,goal_id,title,completed_at,created_at) VALUES (?,?,?,?,?,?)",
-              [uid(), user.id, goalId, step.title, null, now()],
+              "INSERT INTO goal_steps (id,user_id,goal_id,title,target_value,current_value,unit,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+              [
+                uid(),
+                user.id,
+                goalId,
+                step.title,
+                step.target_value,
+                Math.min(step.current_value, step.target_value),
+                step.unit,
+                step.current_value >= step.target_value ? now() : null,
+                now(),
+              ],
             );
           }
         }
@@ -698,6 +722,24 @@ export const appApi = createServerFn({ method: "POST" })
           ]);
       }
       return { ok: true, id: goalId };
+    }
+    if (data.action === "goal.progress") {
+      const goalId = text(p.id, 80);
+      const delta = z.union([z.literal(-1), z.literal(1)]).parse(p.delta);
+      await run(
+        "UPDATE goals SET current_value=CASE WHEN current_value + ? < 0 THEN 0 WHEN current_value + ? > target_value THEN target_value ELSE current_value + ? END WHERE id=? AND user_id=?",
+        [delta, delta, delta, goalId, user.id],
+      );
+      return { ok: true };
+    }
+    if (data.action === "goal.target.progress") {
+      const targetId = text(p.id, 80);
+      const delta = z.union([z.literal(-1), z.literal(1)]).parse(p.delta);
+      await run(
+        "UPDATE goal_steps SET current_value=CASE WHEN current_value + ? < 0 THEN 0 WHEN current_value + ? > target_value THEN target_value ELSE current_value + ? END, completed_at=CASE WHEN current_value + ? >= target_value THEN ? ELSE NULL END WHERE id=? AND user_id=? AND goal_id IN (SELECT id FROM goals WHERE user_id=?)",
+        [delta, delta, delta, delta, now(), targetId, user.id, user.id],
+      );
+      return { ok: true };
     }
     if (data.action === "goal.step.status") {
       const stepId = text(p.id, 80);

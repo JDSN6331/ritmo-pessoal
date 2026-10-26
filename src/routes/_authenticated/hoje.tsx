@@ -5,7 +5,7 @@ import { ptBR } from "date-fns/locale";
 import { Check, Plus } from "lucide-react";
 import { useGoals, useHabits, useTasks, useToggleHabit, type Task } from "@/lib/data";
 import {
-  goalProgressWithSteps,
+  goalProgress,
   groupTasks,
   isHabitDay,
   isOverdue,
@@ -38,9 +38,7 @@ function Today() {
   const primaryTasks = mainTasks(tasks);
 
   const overdue = primaryTasks.filter((t) => isOverdue(t, today));
-  const dueToday = primaryTasks.filter(
-    (t) => t.due_date === today && !["done", "not_done"].includes(t.status),
-  );
+  const dueToday = primaryTasks.filter((t) => t.due_date === today && t.status === "pending");
   const notDone = primaryTasks.filter((t) => t.status === "not_done" && t.due_date === today);
   const inProgress = primaryTasks.filter((t) => t.status === "in_progress" && t.due_date === today);
   const doneToday = primaryTasks.filter(
@@ -171,11 +169,7 @@ function Today() {
           >
             {goals.length ? (
               goals.slice(0, 4).map((g) => {
-                const p = goalProgressWithSteps(
-                  Number(g.current_value),
-                  Number(g.target_value),
-                  g.steps,
-                );
+                const p = goalProgress(Number(g.current_value), Number(g.target_value));
                 return (
                   <div key={g.id} className="rounded-xl border bg-card p-3">
                     <div className="flex justify-between text-sm">

@@ -15,7 +15,13 @@ export type { Goal, GoalStep, Habit, HabitLog, Task, TaskList, User };
 export type TaskInsert = Partial<Task> & Pick<Task, "title">;
 export type SubtaskDraft = { id?: string; title: string };
 export type HabitInsert = Partial<Habit> & Pick<Habit, "title">;
-export type GoalStepDraft = { id?: string; title: string };
+export type GoalStepDraft = {
+  id?: string;
+  title: string;
+  target_value: number;
+  current_value: number;
+  unit: string;
+};
 export type GoalInsert = Partial<Omit<Goal, "steps">> &
   Pick<Goal, "title"> & { steps?: GoalStepDraft[] };
 export type Dashboard = {
@@ -122,6 +128,10 @@ export function useGoals() {
   return { ...q, data: q.data?.goals };
 }
 export const useSaveGoal = () => useAction<GoalInsert & { id?: string }>("goal.save", "Meta salva");
+export const useChangeGoalProgress = () =>
+  useAction<{ id: string; delta: -1 | 1 }>("goal.progress");
+export const useChangeGoalTargetProgress = () =>
+  useAction<{ id: string; delta: -1 | 1 }>("goal.target.progress");
 export const useSetGoalStepStatus = () =>
   useAction<{ id: string; completed: boolean }>("goal.step.status");
 export function useDeleteGoal() {
