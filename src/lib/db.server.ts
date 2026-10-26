@@ -72,8 +72,10 @@ export async function initDb() {
       `CREATE TABLE IF NOT EXISTS habits (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, title TEXT NOT NULL, frequency TEXT NOT NULL DEFAULT 'daily', days_of_week TEXT NOT NULL DEFAULT '[0,1,2,3,4,5,6]', color TEXT NOT NULL DEFAULT 'lime', created_at TEXT NOT NULL)`,
       `CREATE TABLE IF NOT EXISTS habit_logs (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, habit_id TEXT NOT NULL REFERENCES habits(id) ON DELETE CASCADE, log_date TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE(habit_id, log_date))`,
       `CREATE TABLE IF NOT EXISTS goals (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT, target_value REAL NOT NULL DEFAULT 100, current_value REAL NOT NULL DEFAULT 0, unit TEXT NOT NULL DEFAULT '%', deadline TEXT, created_at TEXT NOT NULL)`,
+      `CREATE TABLE IF NOT EXISTS goal_steps (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, goal_id TEXT NOT NULL REFERENCES goals(id) ON DELETE CASCADE, title TEXT NOT NULL, completed_at TEXT, created_at TEXT NOT NULL)`,
       `CREATE INDEX IF NOT EXISTS idx_tasks_user_date ON tasks(user_id, due_date)`,
       `CREATE INDEX IF NOT EXISTS idx_sessions_expiry ON sessions(expires_at)`,
+      `CREATE INDEX IF NOT EXISTS idx_goal_steps_goal ON goal_steps(goal_id)`,
     ];
     if (isPostgres) {
       for (const statement of statements) await pgDb().unsafe(statement);

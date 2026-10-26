@@ -2,15 +2,23 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Minus, Pencil, Plus, Trash2, Trophy } from "lucide-react";
-import { useDeleteGoal, useGoals, useSaveGoal, type Goal } from "@/lib/data";
-import { goalProgress } from "@/lib/planner";
+import { CheckCircle2, Minus, Pencil, Plus, Trash2, Trophy } from "lucide-react";
+import {
+  useDeleteGoal,
+  useGoals,
+  useSaveGoal,
+  useSetGoalStepStatus,
+  type Goal,
+  type GoalStepDraft,
+} from "@/lib/data";
+import { goalProgressWithSteps } from "@/lib/planner";
 import { Empty, PageHeader } from "@/components/page-header";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -34,6 +42,7 @@ function GoalsPage() {
   const { data: goals = [] } = useGoals();
   const save = useSaveGoal();
   const del = useDeleteGoal();
+  const setStepStatus = useSetGoalStepStatus();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Goal | null>(null);
 
@@ -43,7 +52,11 @@ function GoalsPage() {
     save.mutate({
       id: g.id,
       title: g.title,
+      description: g.description,
+      target_value: g.target_value,
       current_value: Math.max(0, Number(g.current_value) + delta * step),
+      unit: g.unit,
+      deadline: g.deadline,
     });
   };
 
@@ -65,7 +78,8 @@ function GoalsPage() {
       {goals.length === 0 && <Empty>Defina uma meta e acompanhe seu avanço.</Empty>}
       <div className="grid gap-4 md:grid-cols-2">
         {goals.map((g) => {
-          const p = goalProgress(Number(g.current_value), Number(g.target_value));
+          const completedSteps = g.steps.filter((step) => step.completed_at).length;
+          const p = goalProgressWithSteps(Number(g.current_value), Number(g.target_value), g.steps);
           const left = g.deadline
             ? differenceInCalendarDays(parseISO(g.deadline), new Date())
             : null;
@@ -109,10 +123,45 @@ function GoalsPage() {
               <div className="mt-5 flex items-end justify-between">
                 <p className="font-display text-3xl font-bold text-primary">{p}%</p>
                 <p className="text-sm text-muted-foreground">
-                  {Number(g.current_value)} / {Number(g.target_value)} {g.unit}
+                  {g.steps.length
+                    ? `${completedSteps}/${g.steps.length} etapas`
+                    : `${Number(g.current_value)} / ${Number(g.target_value)} ${g.unit}`}
                 </p>
               </div>
               <Progress value={p} className="mt-3 h-2" />
+              {g.steps.length > 0 && (
+                <div className="mt-4 space-y-2 border-t pt-4">
+                  <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                    <CheckCircle2 className="size-4" /> Etapas da meta
+                  </p>
+                  {g.steps.map((step) => {
+                    const completed = Boolean(step.completed_at);
+                    return (
+                      <label
+                        key={step.id}
+                        className="flex cursor-pointer items-start gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-muted/60"
+                      >
+                        <Checkbox
+                          className="mt-0.5"
+                          checked={completed}
+                          disabled={setStepStatus.isPending}
+                          onCheckedChange={(checked) =>
+                            setStepStatus.mutate({ id: step.id, completed: checked === true })
+                          }
+                        />
+                        <span
+                          className={cn(
+                            "min-w-0 break-words text-sm [overflow-wrap:anywhere]",
+                            completed && "text-muted-foreground line-through",
+                          )}
+                        >
+                          {step.title}
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
               <div className="mt-4 flex items-center justify-between">
                 <span
                   className={cn(
@@ -128,19 +177,21 @@ function GoalsPage() {
                       : `Prazo: ${format(parseISO(g.deadline), "d MMM yyyy", { locale: ptBR })}`
                     : "Sem prazo"}
                 </span>
-                <div className="flex gap-1">
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    aria-label="Diminuir"
-                    onClick={() => bump(g, -1)}
-                  >
-                    <Minus />
-                  </Button>
-                  <Button size="icon" aria-label="Aumentar" onClick={() => bump(g, 1)}>
-                    <Plus />
-                  </Button>
-                </div>
+                {g.steps.length === 0 && (
+                  <div className="flex gap-1">
+                    <Button
+                      size="icon"
+                      variant="secondary"
+                      aria-label="Diminuir"
+                      onClick={() => bump(g, -1)}
+                    >
+                      <Minus />
+                    </Button>
+                    <Button size="icon" aria-label="Aumentar" onClick={() => bump(g, 1)}>
+                      <Plus />
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -168,6 +219,7 @@ function GoalDialog({
     current_value: "0",
     unit: "%",
     deadline: "",
+    steps: [] as GoalStepDraft[],
   });
   useEffect(() => {
     if (open)
@@ -178,6 +230,7 @@ function GoalDialog({
         current_value: String(goal?.current_value ?? 0),
         unit: goal?.unit ?? "%",
         deadline: goal?.deadline ?? "",
+        steps: goal?.steps.map((step) => ({ id: step.id, title: step.title })) ?? [],
       });
   }, [open, goal]);
 
@@ -192,6 +245,9 @@ function GoalDialog({
         current_value: Number(f.current_value) || 0,
         unit: f.unit,
         deadline: f.deadline || null,
+        steps: f.steps
+          .filter((step) => step.title.trim())
+          .map((step) => ({ ...step, title: step.title.trim() })),
       },
       { onSuccess: () => onOpenChange(false) },
     );
@@ -199,7 +255,7 @@ function GoalDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
         <DialogHeader>
           <DialogTitle>{goal ? "Editar meta" : "Nova meta"}</DialogTitle>
         </DialogHeader>
@@ -264,6 +320,60 @@ function GoalDialog({
               value={f.deadline}
               onChange={(e) => setF({ ...f, deadline: e.target.value })}
             />
+          </div>
+          <div className="rounded-xl border p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <Label>Etapas da meta</Label>
+                <p className="text-xs text-muted-foreground">
+                  Opcional. Divida a meta em ações menores.
+                </p>
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => setF({ ...f, steps: [...f.steps, { title: "" }] })}
+              >
+                <Plus /> Adicionar
+              </Button>
+            </div>
+            {f.steps.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {f.steps.map((step, index) => (
+                  <div key={step.id ?? `new-${index}`} className="flex items-center gap-2">
+                    <span className="w-5 text-center text-xs text-muted-foreground">
+                      {index + 1}
+                    </span>
+                    <Input
+                      aria-label={`Etapa ${index + 1}`}
+                      maxLength={300}
+                      placeholder="Ex.: Montar um currículo"
+                      value={step.title}
+                      onChange={(event) =>
+                        setF({
+                          ...f,
+                          steps: f.steps.map((item, itemIndex) =>
+                            itemIndex === index ? { ...item, title: event.target.value } : item,
+                          ),
+                        })
+                      }
+                    />
+                    <Button
+                      type="button"
+                      size="icon"
+                      variant="ghost"
+                      aria-label={`Excluir etapa ${index + 1}`}
+                      onClick={() =>
+                        setF({ ...f, steps: f.steps.filter((_, itemIndex) => itemIndex !== index) })
+                      }
+                    >
+                      <Trash2 />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button type="button" variant="ghost" onClick={() => onOpenChange(false)}>

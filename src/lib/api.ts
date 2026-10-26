@@ -61,6 +61,15 @@ export type Goal = {
   unit: string;
   deadline: string | null;
   created_at: string;
+  steps: GoalStep[];
+};
+export type GoalStep = {
+  id: string;
+  user_id: string;
+  goal_id: string;
+  title: string;
+  completed_at: string | null;
+  created_at: string;
 };
 
 const requestSchema = z.object({
@@ -95,13 +104,15 @@ type Payload = Partial<
     | "log_date"
     | "target_value"
     | "current_value"
+    | "completed"
     | "unit"
     | "deadline"
     | "ids"
     | "operation"
     | "value"
     | "remember"
-    | "subtasks",
+    | "subtasks"
+    | "steps",
     unknown
   >
 >;
@@ -153,6 +164,14 @@ const subtasksSchema = z
     z.object({
       id: z.string().min(1).max(80).optional(),
       title: z.string().trim().min(1).max(500),
+    }),
+  )
+  .max(50);
+const goalStepsSchema = z
+  .array(
+    z.object({
+      id: z.string().min(1).max(80).optional(),
+      title: z.string().trim().min(1).max(300),
     }),
   )
   .max(50);
@@ -248,13 +267,61 @@ export const appApi = createServerFn({ method: "POST" })
     if (data.action === "session.touch") return { user: await requireUser() };
 
     const user = await requireUser(data.action.startsWith("admin."));
+    const createNextOccurrence = async (task: Task, dueDate: string) => {
+      const nextId = uid();
+      const createdAt = now();
+      await run(
+        "INSERT INTO tasks (id,user_id,list_id,parent_id,title,description,due_date,due_time,priority,status,recurrence,recurrence_interval,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        [
+          nextId,
+          user.id,
+          task.list_id,
+          null,
+          task.title,
+          task.description,
+          dueDate,
+          task.due_time,
+          task.priority,
+          "pending",
+          task.recurrence,
+          task.recurrence_interval,
+          null,
+          createdAt,
+        ],
+      );
+      const subtasks = await all<Task>(
+        "SELECT * FROM tasks WHERE parent_id=? AND user_id=? AND deleted_at IS NULL ORDER BY created_at",
+        [task.id, user.id],
+      );
+      for (const subtask of subtasks)
+        await run(
+          "INSERT INTO tasks (id,user_id,list_id,parent_id,title,description,due_date,due_time,priority,status,recurrence,recurrence_interval,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+          [
+            uid(),
+            user.id,
+            task.list_id,
+            nextId,
+            subtask.title,
+            null,
+            dueDate,
+            task.due_time,
+            task.priority,
+            "pending",
+            "none",
+            1,
+            null,
+            createdAt,
+          ],
+        );
+      return nextId;
+    };
     if (data.action === "dashboard") {
       const trashCutoff = new Date(Date.now() - 30 * 864e5).toISOString();
       await run(
         "DELETE FROM tasks WHERE user_id = ? AND deleted_at IS NOT NULL AND deleted_at < ?",
         [user.id, trashCutoff],
       );
-      const [tasks, trash, habits, goals, lists] = await Promise.all([
+      const [tasks, trash, habits, goals, goalSteps, lists] = await Promise.all([
         all<Task>(
           "SELECT * FROM tasks WHERE user_id = ? AND deleted_at IS NULL ORDER BY due_date, created_at",
           [user.id],
@@ -268,6 +335,7 @@ export const appApi = createServerFn({ method: "POST" })
           [user.id],
         ),
         all<Goal>("SELECT * FROM goals WHERE user_id = ? ORDER BY created_at", [user.id]),
+        all<GoalStep>("SELECT * FROM goal_steps WHERE user_id = ? ORDER BY created_at", [user.id]),
         all<TaskList>("SELECT * FROM task_lists WHERE user_id = ? ORDER BY created_at", [user.id]),
       ]);
       const logs = await all<HabitLog>("SELECT * FROM habit_logs WHERE user_id = ?", [user.id]);
@@ -279,7 +347,10 @@ export const appApi = createServerFn({ method: "POST" })
           ...h,
           days_of_week: JSON.parse(String(h.days_of_week)) as number[],
         })),
-        goals,
+        goals: goals.map((goal) => ({
+          ...goal,
+          steps: goalSteps.filter((step) => step.goal_id === goal.id),
+        })),
         lists,
         logs,
       };
@@ -423,26 +494,7 @@ export const appApi = createServerFn({ method: "POST" })
           task.recurrence as Recurrence,
           task.recurrence_interval,
         );
-        if (due)
-          await run(
-            "INSERT INTO tasks (id,user_id,list_id,parent_id,title,description,due_date,due_time,priority,status,recurrence,recurrence_interval,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-            [
-              uid(),
-              user.id,
-              task.list_id,
-              null,
-              task.title,
-              task.description,
-              due,
-              task.due_time,
-              task.priority,
-              "pending",
-              task.recurrence,
-              task.recurrence_interval,
-              null,
-              now(),
-            ],
-          );
+        if (due) await createNextOccurrence(task, due);
       }
       return { ok: true };
     }
@@ -519,26 +571,7 @@ export const appApi = createServerFn({ method: "POST" })
                 task.recurrence as Recurrence,
                 task.recurrence_interval,
               );
-              if (due)
-                await run(
-                  "INSERT INTO tasks (id,user_id,list_id,parent_id,title,description,due_date,due_time,priority,status,recurrence,recurrence_interval,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
-                  [
-                    uid(),
-                    user.id,
-                    task.list_id,
-                    null,
-                    task.title,
-                    task.description,
-                    due,
-                    task.due_time,
-                    task.priority,
-                    "pending",
-                    task.recurrence,
-                    task.recurrence_interval,
-                    null,
-                    now(),
-                  ],
-                );
+              if (due) await createNextOccurrence(task, due);
             }
           }
         }
@@ -613,6 +646,8 @@ export const appApi = createServerFn({ method: "POST" })
       return { ok: true };
     }
     if (data.action === "goal.save") {
+      const goalId = p.id ? text(p.id, 80) : uid();
+      const steps = goalStepsSchema.optional().parse(p.steps);
       const values = [
         text(p.title, 160),
         optionalText(p.description),
@@ -624,13 +659,53 @@ export const appApi = createServerFn({ method: "POST" })
       if (p.id)
         await run(
           "UPDATE goals SET title=?,description=?,target_value=?,current_value=?,unit=?,deadline=? WHERE id=? AND user_id=?",
-          [...values, text(p.id, 80), user.id],
+          [...values, goalId, user.id],
         );
       else
         await run(
           "INSERT INTO goals (id,user_id,title,description,target_value,current_value,unit,deadline,created_at) VALUES (?,?,?,?,?,?,?,?,?)",
-          [uid(), user.id, ...values, now()],
+          [goalId, user.id, ...values, now()],
         );
+      if (steps) {
+        const existing = await all<GoalStep>(
+          "SELECT * FROM goal_steps WHERE goal_id=? AND user_id=?",
+          [goalId, user.id],
+        );
+        const existingIds = new Set(existing.map((step) => step.id));
+        const keptIds = new Set<string>();
+        for (const step of steps) {
+          if (step.id && existingIds.has(step.id)) {
+            keptIds.add(step.id);
+            await run("UPDATE goal_steps SET title=? WHERE id=? AND goal_id=? AND user_id=?", [
+              step.title,
+              step.id,
+              goalId,
+              user.id,
+            ]);
+          } else {
+            await run(
+              "INSERT INTO goal_steps (id,user_id,goal_id,title,completed_at,created_at) VALUES (?,?,?,?,?,?)",
+              [uid(), user.id, goalId, step.title, null, now()],
+            );
+          }
+        }
+        const removed = [...existingIds].filter((id) => !keptIds.has(id));
+        for (const id of removed)
+          await run("DELETE FROM goal_steps WHERE id=? AND goal_id=? AND user_id=?", [
+            id,
+            goalId,
+            user.id,
+          ]);
+      }
+      return { ok: true, id: goalId };
+    }
+    if (data.action === "goal.step.status") {
+      const stepId = text(p.id, 80);
+      const completed = z.boolean().parse(p.completed);
+      await run(
+        "UPDATE goal_steps SET completed_at=? WHERE id=? AND user_id=? AND goal_id IN (SELECT id FROM goals WHERE user_id=?)",
+        [completed ? now() : null, stepId, user.id, user.id],
+      );
       return { ok: true };
     }
     if (data.action === "goal.delete") {

@@ -66,7 +66,6 @@ function HabitsPage() {
     <>
       <PageHeader
         title="Hábitos"
-        subtitle="Últimos 14 dias"
         action={
           <Button onClick={() => setOpen(true)}>
             <Plus /> Novo hábito

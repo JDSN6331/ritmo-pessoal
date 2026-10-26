@@ -13,6 +13,7 @@ export const RECURRENCE_LABEL: Record<Recurrence, string> = {
 
 export const toISODate = (d: Date) => format(d, "yyyy-MM-dd");
 export const todayISO = () => toISODate(new Date());
+export const localDateFromTimestamp = (timestamp: string) => toISODate(new Date(timestamp));
 
 /** Next due date for a recurring task, counted from its current due date. */
 export function nextDueDate(due: string, recurrence: Recurrence, interval = 1): string | null {
@@ -106,4 +107,13 @@ export function habitStreak(daysOfWeek: number[], logDates: Set<string>, today =
 export function goalProgress(current: number, target: number) {
   if (target <= 0) return 0;
   return Math.min(100, Math.max(0, Math.round((current / target) * 100)));
+}
+
+export function goalProgressWithSteps(
+  current: number,
+  target: number,
+  steps: Array<{ completed_at: string | null }>,
+) {
+  if (!steps.length) return goalProgress(current, target);
+  return Math.round((steps.filter((step) => step.completed_at).length / steps.length) * 100);
 }

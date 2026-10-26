@@ -5,10 +5,11 @@ import { ptBR } from "date-fns/locale";
 import { Check, Plus } from "lucide-react";
 import { useGoals, useHabits, useTasks, useToggleHabit, type Task } from "@/lib/data";
 import {
-  goalProgress,
+  goalProgressWithSteps,
   groupTasks,
   isHabitDay,
   isOverdue,
+  localDateFromTimestamp,
   mainTasks,
   todayISO,
 } from "@/lib/planner";
@@ -40,12 +41,11 @@ function Today() {
   const dueToday = primaryTasks.filter(
     (t) => t.due_date === today && !["done", "not_done"].includes(t.status),
   );
-  const notDone = primaryTasks.filter((t) => t.status === "not_done");
-  const inProgress = primaryTasks.filter(
-    (t) => t.status === "in_progress" && t.due_date !== today && !isOverdue(t, today),
-  );
+  const notDone = primaryTasks.filter((t) => t.status === "not_done" && t.due_date === today);
+  const inProgress = primaryTasks.filter((t) => t.status === "in_progress" && t.due_date === today);
   const doneToday = primaryTasks.filter(
-    (t) => t.status === "done" && t.completed_at?.slice(0, 10) === today,
+    (t) =>
+      t.status === "done" && t.completed_at && localDateFromTimestamp(t.completed_at) === today,
   ).length;
   const habitsToday = (hd?.habits ?? []).filter((h) => isHabitDay(h.days_of_week, new Date()));
   const logSet = new Set(
@@ -56,7 +56,7 @@ function Today() {
     { label: "Para hoje", value: dueToday.length, cls: "text-foreground" },
     {
       label: "Em andamento",
-      value: primaryTasks.filter((t) => t.status === "in_progress").length,
+      value: inProgress.length,
       cls: "text-info",
     },
     { label: "Atrasadas", value: overdue.length, cls: "text-destructive" },
@@ -171,7 +171,11 @@ function Today() {
           >
             {goals.length ? (
               goals.slice(0, 4).map((g) => {
-                const p = goalProgress(Number(g.current_value), Number(g.target_value));
+                const p = goalProgressWithSteps(
+                  Number(g.current_value),
+                  Number(g.target_value),
+                  g.steps,
+                );
                 return (
                   <div key={g.id} className="rounded-xl border bg-card p-3">
                     <div className="flex justify-between text-sm">

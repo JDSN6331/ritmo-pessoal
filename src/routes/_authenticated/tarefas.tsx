@@ -97,14 +97,17 @@ function TasksPage() {
   const bulk = useBulkTasks();
   const primaryTasks = mainTasks(tasks);
 
-  const counts = primaryTasks.reduce<Record<string, number>>((a, t) => {
+  const tasksInSelectedList = primaryTasks.filter(
+    (task) => selectedList === "all" || task.list_id === selectedList,
+  );
+  const counts = tasksInSelectedList.reduce<Record<string, number>>((a, t) => {
     const s = displayStatus(t);
     a[s] = (a[s] ?? 0) + 1;
     return a;
   }, {});
-  const filtered = primaryTasks
-    .filter((t) => selectedList === "all" || t.list_id === selectedList)
-    .filter((t) => t.title.toLowerCase().includes(q.toLowerCase()));
+  const filtered = tasksInSelectedList.filter((t) =>
+    t.title.toLowerCase().includes(q.toLowerCase()),
+  );
   const list = filtered.filter((t) =>
     filter === "all"
       ? !["done", "not_done"].includes(displayStatus(t))

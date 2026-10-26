@@ -3,6 +3,7 @@ import { toast } from "sonner";
 import {
   api,
   type Goal,
+  type GoalStep,
   type Habit,
   type HabitLog,
   type Task,
@@ -10,11 +11,13 @@ import {
   type User,
 } from "@/lib/api";
 
-export type { Goal, Habit, HabitLog, Task, TaskList, User };
+export type { Goal, GoalStep, Habit, HabitLog, Task, TaskList, User };
 export type TaskInsert = Partial<Task> & Pick<Task, "title">;
 export type SubtaskDraft = { id?: string; title: string };
 export type HabitInsert = Partial<Habit> & Pick<Habit, "title">;
-export type GoalInsert = Partial<Goal> & Pick<Goal, "title">;
+export type GoalStepDraft = { id?: string; title: string };
+export type GoalInsert = Partial<Omit<Goal, "steps">> &
+  Pick<Goal, "title"> & { steps?: GoalStepDraft[] };
 export type Dashboard = {
   user: User;
   tasks: Task[];
@@ -119,6 +122,8 @@ export function useGoals() {
   return { ...q, data: q.data?.goals };
 }
 export const useSaveGoal = () => useAction<GoalInsert & { id?: string }>("goal.save", "Meta salva");
+export const useSetGoalStepStatus = () =>
+  useAction<{ id: string; completed: boolean }>("goal.step.status");
 export function useDeleteGoal() {
   const action = useAction<{ id: string }>("goal.delete", "Meta excluída");
   return { ...action, mutate: (id: string) => action.mutate({ id }) };

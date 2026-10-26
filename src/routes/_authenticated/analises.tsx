@@ -1,8 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import { CheckCircle2, CircleX, Clock3, ListChecks, TrendingUp } from "lucide-react";
 import { useDashboard } from "@/lib/data";
-import { displayStatus, mainTasks, todayISO } from "@/lib/planner";
+import {
+  displayStatus,
+  localDateFromTimestamp,
+  mainTasks,
+  todayISO,
+  toISODate,
+} from "@/lib/planner";
 import { PageHeader } from "@/components/page-header";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export const Route = createFileRoute("/_authenticated/analises")({
   head: () => ({ meta: [{ title: "Análises — Ritmo" }] }),
@@ -11,7 +25,10 @@ export const Route = createFileRoute("/_authenticated/analises")({
 
 function AnalyticsPage() {
   const { data } = useDashboard();
-  const tasks = mainTasks(data?.tasks ?? []);
+  const [selectedList, setSelectedList] = useState("all");
+  const tasks = mainTasks(data?.tasks ?? []).filter(
+    (task) => selectedList === "all" || task.list_id === selectedList,
+  );
   const done = tasks.filter((t) => t.status === "done");
   const notDone = tasks.filter((t) => t.status === "not_done");
   const overdue = tasks.filter((t) => displayStatus(t) === "overdue");
@@ -20,11 +37,12 @@ function AnalyticsPage() {
   const last7 = Array.from({ length: 7 }, (_, i) => {
     const d = new Date();
     d.setDate(d.getDate() - (6 - i));
-    const iso = d.toISOString().slice(0, 10);
+    const iso = toISODate(d);
     return {
       iso,
       label: d.toLocaleDateString("pt-BR", { weekday: "short" }),
-      count: done.filter((t) => t.completed_at?.slice(0, 10) === iso).length,
+      count: done.filter((t) => t.completed_at && localDateFromTimestamp(t.completed_at) === iso)
+        .length,
     };
   });
   const max = Math.max(1, ...last7.map((d) => d.count));
@@ -40,6 +58,24 @@ function AnalyticsPage() {
       <PageHeader
         title="Painel de análise"
         subtitle={`Visão geral atualizada em ${new Date(todayISO() + "T12:00").toLocaleDateString("pt-BR")}`}
+        action={
+          <Select value={selectedList} onValueChange={setSelectedList}>
+            <SelectTrigger
+              className="w-full min-w-52 sm:w-64"
+              aria-label="Filtrar análise por lista"
+            >
+              <SelectValue placeholder="Selecione uma lista" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas as listas</SelectItem>
+              {(data?.lists ?? []).map((list) => (
+                <SelectItem key={list.id} value={list.id}>
+                  {list.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        }
       />
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {cards.map((c) => (

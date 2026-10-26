@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   goalProgress,
+  goalProgressWithSteps,
   groupTasks,
   habitStreak,
   isOverdue,
@@ -66,4 +67,13 @@ describe("sequência de hábitos", () => {
 it("progresso da meta limitado a 100%", () => {
   expect(goalProgress(30, 120)).toBe(25);
   expect(goalProgress(200, 100)).toBe(100);
+});
+
+it("usa as etapas quando a meta possui etapas cadastradas", () => {
+  expect(
+    goalProgressWithSteps(0, 100, [
+      { completed_at: "2026-10-26T12:00:00.000Z" },
+      { completed_at: null },
+    ]),
+  ).toBe(50);
 });
