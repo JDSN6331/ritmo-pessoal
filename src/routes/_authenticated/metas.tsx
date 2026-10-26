@@ -2,7 +2,17 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { differenceInCalendarDays, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { Minus, Pencil, Plus, Target, Trash2, Trophy } from "lucide-react";
+import {
+  CheckCircle2,
+  Circle,
+  Minus,
+  Pencil,
+  Plus,
+  RotateCcw,
+  Target,
+  Trash2,
+  Trophy,
+} from "lucide-react";
 import {
   useChangeGoalProgress,
   useChangeGoalTargetProgress,
@@ -20,6 +30,13 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Progress } from "@/components/ui/progress";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Dialog,
   DialogContent,
   DialogFooter,
@@ -27,6 +44,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
+
+type MetricType = Goal["metric_type"];
 
 export const Route = createFileRoute("/_authenticated/metas")({
   head: () => ({
@@ -68,7 +87,8 @@ function GoalsPage() {
         {goals.map((g) => {
           const current = Number(g.current_value);
           const total = Number(g.target_value);
-          const p = goalProgress(current, total);
+          const booleanMetric = g.metric_type === "boolean";
+          const p = booleanMetric ? (current >= 1 ? 100 : 0) : goalProgress(current, total);
           const left = g.deadline
             ? differenceInCalendarDays(parseISO(g.deadline), new Date())
             : null;
@@ -111,12 +131,31 @@ function GoalsPage() {
               </div>
               <div className="mt-5 flex items-end justify-between gap-4">
                 <div>
-                  <p className="text-xs text-muted-foreground">Atual / total</p>
-                  <p className="mt-0.5 font-display text-2xl font-bold">
-                    <span className="text-primary">{current}</span>
-                    <span className="text-muted-foreground"> / {total}</span>{" "}
-                    <span className="text-sm font-normal text-muted-foreground">{g.unit}</span>
+                  <p className="text-xs text-muted-foreground">
+                    {booleanMetric ? "Status" : "Atual / total"}
                   </p>
+                  {booleanMetric ? (
+                    <p className="mt-0.5 flex items-center gap-2 font-display text-xl font-bold">
+                      {current >= 1 ? (
+                        <CheckCircle2 className="size-5 text-primary" />
+                      ) : (
+                        <Circle className="size-5 text-muted-foreground" />
+                      )}
+                      <span className={current >= 1 ? "text-primary" : "text-muted-foreground"}>
+                        {current >= 1 ? "Feito" : "Não feito"}
+                      </span>
+                    </p>
+                  ) : (
+                    <>
+                      <p className="mt-0.5 font-display text-2xl font-bold">
+                        <span className="text-primary">{current}</span>
+                        <span className="text-muted-foreground"> / {total}</span>
+                      </p>
+                      {g.unit && g.unit !== "%" && (
+                        <p className="text-xs text-muted-foreground">Unidade: {g.unit}</p>
+                      )}
+                    </>
+                  )}
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-muted-foreground">Percentual</p>
@@ -130,10 +169,13 @@ function GoalsPage() {
                     <Target className="size-4" /> Alvos da meta
                   </p>
                   {g.steps.map((step) => {
-                    const targetProgress = goalProgress(
-                      Number(step.current_value),
-                      Number(step.target_value),
-                    );
+                    const targetCurrent = Number(step.current_value);
+                    const booleanTarget = step.metric_type === "boolean";
+                    const targetProgress = booleanTarget
+                      ? targetCurrent >= 1
+                        ? 100
+                        : 0
+                      : goalProgress(targetCurrent, Number(step.target_value));
                     return (
                       <div key={step.id} className="rounded-lg bg-muted/40 p-3">
                         <div className="flex items-center justify-between gap-3">
@@ -142,31 +184,56 @@ function GoalsPage() {
                               {step.title}
                             </p>
                             <p className="mt-0.5 text-xs text-muted-foreground">
-                              {Number(step.current_value)} / {Number(step.target_value)} {step.unit}
+                              {booleanTarget
+                                ? targetCurrent >= 1
+                                  ? "Feito"
+                                  : "Não feito"
+                                : `${targetCurrent} / ${Number(step.target_value)}`}
                               <span className="ml-2 text-primary">{targetProgress}%</span>
                             </p>
+                            {!booleanTarget && step.unit && step.unit !== "%" && (
+                              <p className="text-xs text-muted-foreground">Unidade: {step.unit}</p>
+                            )}
                           </div>
-                          <div className="flex shrink-0 gap-1">
+                          {booleanTarget ? (
                             <Button
-                              size="icon"
-                              variant="secondary"
-                              className="size-8"
-                              aria-label={`Diminuir ${step.title}`}
+                              size="sm"
+                              variant={targetCurrent >= 1 ? "secondary" : "default"}
                               onClick={() =>
-                                changeTargetProgress.mutate({ id: step.id, delta: -1 })
+                                changeTargetProgress.mutate({
+                                  id: step.id,
+                                  delta: targetCurrent >= 1 ? -1 : 1,
+                                })
                               }
                             >
-                              <Minus />
+                              {targetCurrent >= 1 ? <RotateCcw /> : <CheckCircle2 />}
+                              {targetCurrent >= 1 ? "Desfazer" : "Marcar feito"}
                             </Button>
-                            <Button
-                              size="icon"
-                              className="size-8"
-                              aria-label={`Aumentar ${step.title}`}
-                              onClick={() => changeTargetProgress.mutate({ id: step.id, delta: 1 })}
-                            >
-                              <Plus />
-                            </Button>
-                          </div>
+                          ) : (
+                            <div className="flex shrink-0 gap-1">
+                              <Button
+                                size="icon"
+                                variant="secondary"
+                                className="size-8"
+                                aria-label={`Diminuir ${step.title}`}
+                                onClick={() =>
+                                  changeTargetProgress.mutate({ id: step.id, delta: -1 })
+                                }
+                              >
+                                <Minus />
+                              </Button>
+                              <Button
+                                size="icon"
+                                className="size-8"
+                                aria-label={`Aumentar ${step.title}`}
+                                onClick={() =>
+                                  changeTargetProgress.mutate({ id: step.id, delta: 1 })
+                                }
+                              >
+                                <Plus />
+                              </Button>
+                            </div>
+                          )}
                         </div>
                         <Progress value={targetProgress} className="mt-2 h-1.5" />
                       </div>
@@ -189,23 +256,34 @@ function GoalsPage() {
                       : `Prazo: ${format(parseISO(g.deadline), "d MMM yyyy", { locale: ptBR })}`
                     : "Sem prazo"}
                 </span>
-                <div className="flex gap-1">
+                {booleanMetric ? (
                   <Button
-                    size="icon"
-                    variant="secondary"
-                    aria-label="Diminuir progresso em 1"
-                    onClick={() => bump(g, -1)}
+                    size="sm"
+                    variant={current >= 1 ? "secondary" : "default"}
+                    onClick={() => bump(g, current >= 1 ? -1 : 1)}
                   >
-                    <Minus />
+                    {current >= 1 ? <RotateCcw /> : <CheckCircle2 />}
+                    {current >= 1 ? "Desfazer" : "Marcar feito"}
                   </Button>
-                  <Button
-                    size="icon"
-                    aria-label="Aumentar progresso em 1"
-                    onClick={() => bump(g, 1)}
-                  >
-                    <Plus />
-                  </Button>
-                </div>
+                ) : (
+                  <div className="flex gap-1">
+                    <Button
+                      size="icon"
+                      variant="secondary"
+                      aria-label="Diminuir progresso em 1"
+                      onClick={() => bump(g, -1)}
+                    >
+                      <Minus />
+                    </Button>
+                    <Button
+                      size="icon"
+                      aria-label="Aumentar progresso em 1"
+                      onClick={() => bump(g, 1)}
+                    >
+                      <Plus />
+                    </Button>
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -226,14 +304,24 @@ function GoalDialog({
   goal: Goal | null;
 }) {
   const save = useSaveGoal();
-  const [f, setF] = useState({
+  const [f, setF] = useState<{
+    title: string;
+    description: string;
+    target_value: string;
+    current_value: string;
+    unit: string;
+    metric_type: MetricType;
+    deadline: string;
+    steps: GoalStepDraft[];
+  }>({
     title: "",
     description: "",
     target_value: "100",
     current_value: "0",
-    unit: "%",
+    unit: "",
+    metric_type: "numeric",
     deadline: "",
-    steps: [] as GoalStepDraft[],
+    steps: [],
   });
   useEffect(() => {
     if (open)
@@ -242,7 +330,8 @@ function GoalDialog({
         description: goal?.description ?? "",
         target_value: String(goal?.target_value ?? 100),
         current_value: String(goal?.current_value ?? 0),
-        unit: goal?.unit ?? "%",
+        unit: goal?.unit ?? "",
+        metric_type: goal?.metric_type ?? "numeric",
         deadline: goal?.deadline ?? "",
         steps:
           goal?.steps.map((step) => ({
@@ -251,6 +340,7 @@ function GoalDialog({
             target_value: Number(step.target_value),
             current_value: Number(step.current_value),
             unit: step.unit,
+            metric_type: step.metric_type ?? "numeric",
           })) ?? [],
       });
   }, [open, goal]);
@@ -265,6 +355,7 @@ function GoalDialog({
         target_value: Number(f.target_value) || 1,
         current_value: Number(f.current_value) || 0,
         unit: f.unit,
+        metric_type: f.metric_type,
         deadline: f.deadline || null,
         steps: f.steps
           .filter((step) => step.title.trim())
@@ -301,38 +392,83 @@ function GoalDialog({
               onChange={(e) => setF({ ...f, description: e.target.value })}
             />
           </div>
-          <div className="grid grid-cols-3 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="g-c">Atual</Label>
-              <Input
-                id="g-c"
-                type="number"
-                min={0}
-                step="any"
-                value={f.current_value}
-                onChange={(e) => setF({ ...f, current_value: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="g-a">Alvo</Label>
-              <Input
-                id="g-a"
-                type="number"
-                min={1}
-                step="any"
-                value={f.target_value}
-                onChange={(e) => setF({ ...f, target_value: e.target.value })}
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="g-u">Unidade</Label>
-              <Input
-                id="g-u"
-                value={f.unit}
-                onChange={(e) => setF({ ...f, unit: e.target.value })}
-              />
-            </div>
+          <div className="space-y-1.5">
+            <Label>Tipo de métrica</Label>
+            <Select
+              value={f.metric_type}
+              onValueChange={(value) => {
+                const metricType = value as MetricType;
+                setF({
+                  ...f,
+                  metric_type: metricType,
+                  ...(metricType === "boolean"
+                    ? { target_value: "1", current_value: "0", unit: "" }
+                    : {}),
+                });
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="numeric">Valor numérico</SelectItem>
+                <SelectItem value="boolean">Feito ou não feito</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
+          {f.metric_type === "numeric" ? (
+            <div className="grid grid-cols-3 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="g-c">Atual</Label>
+                <Input
+                  id="g-c"
+                  type="number"
+                  min={0}
+                  step="any"
+                  value={f.current_value}
+                  onChange={(e) => setF({ ...f, current_value: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="g-a">Total</Label>
+                <Input
+                  id="g-a"
+                  type="number"
+                  min={1}
+                  step="any"
+                  value={f.target_value}
+                  onChange={(e) => setF({ ...f, target_value: e.target.value })}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="g-u">Unidade (opcional)</Label>
+                <Input
+                  id="g-u"
+                  placeholder="Ex.: livros"
+                  value={f.unit}
+                  onChange={(e) => setF({ ...f, unit: e.target.value })}
+                />
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <Label>Situação atual</Label>
+              <Select
+                value={Number(f.current_value) >= 1 ? "done" : "pending"}
+                onValueChange={(value) =>
+                  setF({ ...f, current_value: value === "done" ? "1" : "0" })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="pending">Não feito</SelectItem>
+                  <SelectItem value="done">Feito</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="g-dl">Prazo</Label>
             <Input
@@ -359,7 +495,13 @@ function GoalDialog({
                     ...f,
                     steps: [
                       ...f.steps,
-                      { title: "", current_value: 0, target_value: 1, unit: f.unit || "un." },
+                      {
+                        title: "",
+                        current_value: 0,
+                        target_value: 1,
+                        unit: "",
+                        metric_type: "numeric",
+                      },
                     ],
                   })
                 }
@@ -405,65 +547,124 @@ function GoalDialog({
                         })
                       }
                     />
-                    <div className="mt-2 grid grid-cols-3 gap-2">
-                      <div className="space-y-1">
-                        <Label htmlFor={`target-current-${index}`}>Atual</Label>
-                        <Input
-                          id={`target-current-${index}`}
-                          type="number"
-                          min={0}
-                          step="any"
-                          value={step.current_value}
-                          onChange={(event) =>
-                            setF({
-                              ...f,
-                              steps: f.steps.map((item, itemIndex) =>
-                                itemIndex === index
-                                  ? { ...item, current_value: Number(event.target.value) }
-                                  : item,
-                              ),
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor={`target-total-${index}`}>Total</Label>
-                        <Input
-                          id={`target-total-${index}`}
-                          type="number"
-                          min={1}
-                          step="any"
-                          required
-                          value={step.target_value}
-                          onChange={(event) =>
-                            setF({
-                              ...f,
-                              steps: f.steps.map((item, itemIndex) =>
-                                itemIndex === index
-                                  ? { ...item, target_value: Number(event.target.value) }
-                                  : item,
-                              ),
-                            })
-                          }
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label htmlFor={`target-unit-${index}`}>Unidade</Label>
-                        <Input
-                          id={`target-unit-${index}`}
-                          required
-                          value={step.unit}
-                          onChange={(event) =>
-                            setF({
-                              ...f,
-                              steps: f.steps.map((item, itemIndex) =>
-                                itemIndex === index ? { ...item, unit: event.target.value } : item,
-                              ),
-                            })
-                          }
-                        />
-                      </div>
+                    <div className="mt-2 space-y-1">
+                      <Label>Tipo de métrica</Label>
+                      <Select
+                        value={step.metric_type}
+                        onValueChange={(value) =>
+                          setF({
+                            ...f,
+                            steps: f.steps.map((item, itemIndex) =>
+                              itemIndex === index
+                                ? {
+                                    ...item,
+                                    metric_type: value as MetricType,
+                                    ...(value === "boolean"
+                                      ? { current_value: 0, target_value: 1, unit: "" }
+                                      : {}),
+                                  }
+                                : item,
+                            ),
+                          })
+                        }
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="numeric">Valor numérico</SelectItem>
+                          <SelectItem value="boolean">Feito ou não feito</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
+                    {step.metric_type === "numeric" ? (
+                      <div className="mt-2 grid grid-cols-3 gap-2">
+                        <div className="space-y-1">
+                          <Label htmlFor={`target-current-${index}`}>Atual</Label>
+                          <Input
+                            id={`target-current-${index}`}
+                            type="number"
+                            min={0}
+                            step="any"
+                            value={step.current_value}
+                            onChange={(event) =>
+                              setF({
+                                ...f,
+                                steps: f.steps.map((item, itemIndex) =>
+                                  itemIndex === index
+                                    ? { ...item, current_value: Number(event.target.value) }
+                                    : item,
+                                ),
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor={`target-total-${index}`}>Total</Label>
+                          <Input
+                            id={`target-total-${index}`}
+                            type="number"
+                            min={1}
+                            step="any"
+                            required
+                            value={step.target_value}
+                            onChange={(event) =>
+                              setF({
+                                ...f,
+                                steps: f.steps.map((item, itemIndex) =>
+                                  itemIndex === index
+                                    ? { ...item, target_value: Number(event.target.value) }
+                                    : item,
+                                ),
+                              })
+                            }
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <Label htmlFor={`target-unit-${index}`}>Unidade (opcional)</Label>
+                          <Input
+                            id={`target-unit-${index}`}
+                            placeholder="Ex.: livros"
+                            value={step.unit}
+                            onChange={(event) =>
+                              setF({
+                                ...f,
+                                steps: f.steps.map((item, itemIndex) =>
+                                  itemIndex === index
+                                    ? { ...item, unit: event.target.value }
+                                    : item,
+                                ),
+                              })
+                            }
+                          />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-2 space-y-1">
+                        <Label>Situação atual</Label>
+                        <Select
+                          value={step.current_value >= 1 ? "done" : "pending"}
+                          onValueChange={(value) =>
+                            setF({
+                              ...f,
+                              steps: f.steps.map((item, itemIndex) =>
+                                itemIndex === index
+                                  ? { ...item, current_value: value === "done" ? 1 : 0 }
+                                  : item,
+                              ),
+                            })
+                          }
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="pending">Não feito</SelectItem>
+                            <SelectItem value="done">Feito</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

@@ -59,6 +59,7 @@ export type Goal = {
   target_value: number;
   current_value: number;
   unit: string;
+  metric_type: "numeric" | "boolean";
   deadline: string | null;
   created_at: string;
   steps: GoalStep[];
@@ -71,6 +72,7 @@ export type GoalStep = {
   target_value: number;
   current_value: number;
   unit: string;
+  metric_type: "numeric" | "boolean";
   completed_at: string | null;
   created_at: string;
 };
@@ -109,6 +111,7 @@ type Payload = Partial<
     | "current_value"
     | "completed"
     | "unit"
+    | "metric_type"
     | "deadline"
     | "ids"
     | "operation"
@@ -178,7 +181,8 @@ const goalStepsSchema = z
       title: z.string().trim().min(1).max(300),
       target_value: z.coerce.number().positive(),
       current_value: z.coerce.number().min(0),
-      unit: z.string().trim().min(1).max(20),
+      unit: z.string().trim().max(20),
+      metric_type: z.enum(["numeric", "boolean"]).default("numeric"),
     }),
   )
   .max(50);
@@ -655,22 +659,39 @@ export const appApi = createServerFn({ method: "POST" })
     if (data.action === "goal.save") {
       const goalId = p.id ? text(p.id, 80) : uid();
       const steps = goalStepsSchema.optional().parse(p.steps);
+      const metricType = z.enum(["numeric", "boolean"]).parse(p.metric_type ?? "numeric");
+      const targetValue = metricType === "boolean" ? 1 : Math.max(1, Number(p.target_value) || 1);
+      const currentValue =
+        metricType === "boolean"
+          ? Number(p.current_value) >= 1
+            ? 1
+            : 0
+          : Math.min(targetValue, Math.max(0, Number(p.current_value) || 0));
+      const unit =
+        metricType === "boolean"
+          ? ""
+          : z
+              .string()
+              .trim()
+              .max(20)
+              .parse(p.unit ?? "");
       const values = [
         text(p.title, 160),
         optionalText(p.description),
-        Number(p.target_value) || 1,
-        Number(p.current_value) || 0,
-        text(p.unit || "%", 20),
+        targetValue,
+        currentValue,
+        unit,
+        metricType,
         p.deadline ? text(p.deadline, 10) : null,
       ];
       if (p.id)
         await run(
-          "UPDATE goals SET title=?,description=?,target_value=?,current_value=?,unit=?,deadline=? WHERE id=? AND user_id=?",
+          "UPDATE goals SET title=?,description=?,target_value=?,current_value=?,unit=?,metric_type=?,deadline=? WHERE id=? AND user_id=?",
           [...values, goalId, user.id],
         );
       else
         await run(
-          "INSERT INTO goals (id,user_id,title,description,target_value,current_value,unit,deadline,created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+          "INSERT INTO goals (id,user_id,title,description,target_value,current_value,unit,metric_type,deadline,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
           [goalId, user.id, ...values, now()],
         );
       if (steps) {
@@ -684,13 +705,20 @@ export const appApi = createServerFn({ method: "POST" })
           if (step.id && existingIds.has(step.id)) {
             keptIds.add(step.id);
             await run(
-              "UPDATE goal_steps SET title=?,target_value=?,current_value=?,unit=?,completed_at=? WHERE id=? AND goal_id=? AND user_id=?",
+              "UPDATE goal_steps SET title=?,target_value=?,current_value=?,unit=?,metric_type=?,completed_at=? WHERE id=? AND goal_id=? AND user_id=?",
               [
                 step.title,
-                step.target_value,
-                Math.min(step.current_value, step.target_value),
-                step.unit,
-                step.current_value >= step.target_value ? now() : null,
+                step.metric_type === "boolean" ? 1 : step.target_value,
+                step.metric_type === "boolean"
+                  ? step.current_value >= 1
+                    ? 1
+                    : 0
+                  : Math.min(step.current_value, step.target_value),
+                step.metric_type === "boolean" ? "" : step.unit,
+                step.metric_type,
+                step.current_value >= (step.metric_type === "boolean" ? 1 : step.target_value)
+                  ? now()
+                  : null,
                 step.id,
                 goalId,
                 user.id,
@@ -698,16 +726,23 @@ export const appApi = createServerFn({ method: "POST" })
             );
           } else {
             await run(
-              "INSERT INTO goal_steps (id,user_id,goal_id,title,target_value,current_value,unit,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?)",
+              "INSERT INTO goal_steps (id,user_id,goal_id,title,target_value,current_value,unit,metric_type,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?)",
               [
                 uid(),
                 user.id,
                 goalId,
                 step.title,
-                step.target_value,
-                Math.min(step.current_value, step.target_value),
-                step.unit,
-                step.current_value >= step.target_value ? now() : null,
+                step.metric_type === "boolean" ? 1 : step.target_value,
+                step.metric_type === "boolean"
+                  ? step.current_value >= 1
+                    ? 1
+                    : 0
+                  : Math.min(step.current_value, step.target_value),
+                step.metric_type === "boolean" ? "" : step.unit,
+                step.metric_type,
+                step.current_value >= (step.metric_type === "boolean" ? 1 : step.target_value)
+                  ? now()
+                  : null,
                 now(),
               ],
             );

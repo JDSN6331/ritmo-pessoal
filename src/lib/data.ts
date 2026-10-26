@@ -21,6 +21,7 @@ export type GoalStepDraft = {
   target_value: number;
   current_value: number;
   unit: string;
+  metric_type: "numeric" | "boolean";
 };
 export type GoalInsert = Partial<Omit<Goal, "steps">> &
   Pick<Goal, "title"> & { steps?: GoalStepDraft[] };

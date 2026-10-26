@@ -9,7 +9,6 @@ import {
   groupTasks,
   isHabitDay,
   isOverdue,
-  localDateFromTimestamp,
   mainTasks,
   todayISO,
 } from "@/lib/planner";
@@ -38,13 +37,10 @@ function Today() {
   const primaryTasks = mainTasks(tasks);
 
   const overdue = primaryTasks.filter((t) => isOverdue(t, today));
-  const dueToday = primaryTasks.filter((t) => t.due_date === today && t.status === "pending");
-  const notDone = primaryTasks.filter((t) => t.status === "not_done" && t.due_date === today);
-  const inProgress = primaryTasks.filter((t) => t.status === "in_progress" && t.due_date === today);
-  const doneToday = primaryTasks.filter(
-    (t) =>
-      t.status === "done" && t.completed_at && localDateFromTimestamp(t.completed_at) === today,
-  ).length;
+  const dueToday = primaryTasks.filter((t) => t.due_date === today);
+  const notDone = dueToday.filter((t) => t.status === "not_done");
+  const inProgress = dueToday.filter((t) => t.status === "in_progress");
+  const doneToday = dueToday.filter((t) => t.status === "done").length;
   const habitsToday = (hd?.habits ?? []).filter((h) => isHabitDay(h.days_of_week, new Date()));
   const logSet = new Set(
     (hd?.logs ?? []).filter((l) => l.log_date === today).map((l) => l.habit_id),
@@ -106,16 +102,6 @@ function Today() {
           <Section title="Para hoje">
             {dueToday.length ? taskGroups(dueToday) : <Empty>Nada agendado para hoje.</Empty>}
           </Section>
-          {notDone.length > 0 && (
-            <Section title="Não feitas" tone="text-orange-500">
-              {taskGroups(notDone)}
-            </Section>
-          )}
-          {inProgress.length > 0 && (
-            <Section title="Em andamento" tone="text-info">
-              {taskGroups(inProgress)}
-            </Section>
-          )}
         </div>
 
         <div className="space-y-8">
