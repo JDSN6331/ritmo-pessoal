@@ -13,7 +13,7 @@ import {
 
 export type { Goal, GoalStep, Habit, HabitLog, Task, TaskList, User };
 export type TaskInsert = Partial<Task> & Pick<Task, "title">;
-export type SubtaskDraft = { id?: string; title: string };
+export type SubtaskDraft = { id?: string; title: string; position?: number };
 export type HabitInsert = Partial<Habit> & Pick<Habit, "title">;
 export type GoalStepDraft = {
   id?: string;
@@ -68,6 +68,8 @@ export function useTrash() {
 }
 export const useSaveTask = () =>
   useAction<TaskInsert & { id?: string; subtasks?: SubtaskDraft[] }>("task.save", "Tarefa salva");
+export const useReorderSubtasks = () =>
+  useAction<{ parent_id: string; ids: string[] }>("task.subtasks.reorder");
 export function useSetTaskStatus() {
   const action = useAction<{ id: string; status: string }>("task.status");
   return {

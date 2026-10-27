@@ -2,6 +2,8 @@ import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { useState } from "react";
 import {
+  ArrowDown,
+  ArrowUp,
   CalendarDays,
   Check,
   ChevronDown,
@@ -16,8 +18,20 @@ import {
   Trash2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { displayStatus, RECURRENCE_LABEL, subtaskProgress, type Recurrence } from "@/lib/planner";
-import { useDeleteTask, useSaveTask, useSetTaskStatus, type Task } from "@/lib/data";
+import {
+  displayStatus,
+  moveItem,
+  RECURRENCE_LABEL,
+  subtaskProgress,
+  type Recurrence,
+} from "@/lib/planner";
+import {
+  useDeleteTask,
+  useReorderSubtasks,
+  useSaveTask,
+  useSetTaskStatus,
+  type Task,
+} from "@/lib/data";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -67,7 +81,14 @@ export function TaskItem({ task, subtasks = [], onEdit, selectedIds, onSelectedC
   const [addSubtaskOpen, setAddSubtaskOpen] = useState(false);
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const saveTask = useSaveTask();
-  const progress = subtaskProgress(subtasks);
+  const reorderSubtasks = useReorderSubtasks();
+  const orderedSubtasks = [...subtasks].sort((a, b) => a.position - b.position);
+  const progress = subtaskProgress(orderedSubtasks);
+
+  const moveSubtask = (fromIndex: number, toIndex: number) => {
+    const reordered = moveItem(orderedSubtasks, fromIndex, toIndex);
+    reorderSubtasks.mutate({ parent_id: task.id, ids: reordered.map((item) => item.id) });
+  };
 
   const openAddSubtask = () => {
     setNewSubtaskTitle("");
@@ -149,8 +170,20 @@ export function TaskItem({ task, subtasks = [], onEdit, selectedIds, onSelectedC
           )}
           {subtasks.length > 0 && subtasksExpanded && (
             <div className="divide-y rounded-lg border bg-background/40">
-              {subtasks.map((subtask) => (
-                <TaskRow key={subtask.id} task={subtask} nested onEdit={onEdit} />
+              {orderedSubtasks.map((subtask, index) => (
+                <TaskRow
+                  key={subtask.id}
+                  task={subtask}
+                  nested
+                  onEdit={onEdit}
+                  onMoveUp={index > 0 ? () => moveSubtask(index, index - 1) : undefined}
+                  onMoveDown={
+                    index < orderedSubtasks.length - 1
+                      ? () => moveSubtask(index, index + 1)
+                      : undefined
+                  }
+                  reorderPending={reorderSubtasks.isPending}
+                />
               ))}
             </div>
           )}
@@ -219,12 +252,18 @@ function TaskRow({
   onEdit,
   selected,
   onSelectedChange,
+  onMoveUp,
+  onMoveDown,
+  reorderPending = false,
 }: {
   task: Task;
   nested?: boolean;
   onEdit: (task: Task) => void;
   selected?: boolean | undefined;
   onSelectedChange?: ((task: Task, selected: boolean) => void) | undefined;
+  onMoveUp?: (() => void) | undefined;
+  onMoveDown?: (() => void) | undefined;
+  reorderPending?: boolean;
 }) {
   const setStatus = useSetTaskStatus();
   const del = useDeleteTask();
@@ -347,6 +386,30 @@ function TaskRow({
             >
               {task.status === "not_done" ? <RotateCcw /> : <CircleX />}
             </Button>
+          )}
+          {nested && (
+            <>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-8"
+                aria-label="Mover subtarefa para cima"
+                disabled={!onMoveUp || reorderPending}
+                onClick={onMoveUp}
+              >
+                <ArrowUp />
+              </Button>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="size-8"
+                aria-label="Mover subtarefa para baixo"
+                disabled={!onMoveDown || reorderPending}
+                onClick={onMoveDown}
+              >
+                <ArrowDown />
+              </Button>
+            </>
           )}
           <Button
             size="icon"

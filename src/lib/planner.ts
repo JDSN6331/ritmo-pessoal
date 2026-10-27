@@ -50,6 +50,21 @@ export function subtaskProgress<T extends { status: string }>(subtasks: T[]) {
   return { done, total, percentage };
 }
 
+export function moveItem<T>(items: T[], fromIndex: number, toIndex: number) {
+  if (
+    fromIndex === toIndex ||
+    fromIndex < 0 ||
+    toIndex < 0 ||
+    fromIndex >= items.length ||
+    toIndex >= items.length
+  )
+    return items;
+  const reordered = [...items];
+  const [item] = reordered.splice(fromIndex, 1);
+  reordered.splice(toIndex, 0, item!);
+  return reordered;
+}
+
 export function displayStatus(
   t: { due_date: string | null; status: string },
   today = todayISO(),
@@ -72,11 +87,17 @@ export function groupTasks<T extends { id: string; parent_id: string | null }>(
     .filter((task): task is T => Boolean(task))
     .map((task) => ({
       task,
-      subtasks: allTasks.filter(
-        (candidate) =>
-          candidate.parent_id === task.id &&
-          (visibleIds.has(task.id) || visibleIds.has(candidate.id)),
-      ),
+      subtasks: allTasks
+        .filter(
+          (candidate) =>
+            candidate.parent_id === task.id &&
+            (visibleIds.has(task.id) || visibleIds.has(candidate.id)),
+        )
+        .sort(
+          (a, b) =>
+            ((a as { position?: number }).position ?? 0) -
+            ((b as { position?: number }).position ?? 0),
+        ),
     }));
 }
 

@@ -7,6 +7,7 @@ import {
   habitStreak,
   isOverdue,
   mainTasks,
+  moveItem,
   nextDueDate,
   subtaskProgress,
 } from "@/lib/planner";
@@ -53,6 +54,18 @@ describe("hierarquia de tarefas", () => {
       total: 2,
       percentage: 50,
     });
+  });
+
+  it("ordena subtarefas pela posição salva", () => {
+    const second = { id: "second", parent_id: "parent", title: "Segunda", position: 1 };
+    const first = { id: "first", parent_id: "parent", title: "Primeira", position: 0 };
+    expect(groupTasks([parent, second, first], [parent])[0]?.subtasks).toEqual([first, second]);
+  });
+
+  it("move um item sem alterar a lista original", () => {
+    const items = ["A", "B", "C"];
+    expect(moveItem(items, 2, 0)).toEqual(["C", "A", "B"]);
+    expect(items).toEqual(["A", "B", "C"]);
   });
 });
 

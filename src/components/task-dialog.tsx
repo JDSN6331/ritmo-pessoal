@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, Trash2 } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -19,7 +19,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useLists, useSaveTask, useTasks, type SubtaskDraft, type Task } from "@/lib/data";
-import { RECURRENCE_LABEL } from "@/lib/planner";
+import { moveItem, RECURRENCE_LABEL } from "@/lib/planner";
 
 type Props = {
   open: boolean;
@@ -71,6 +71,7 @@ export function TaskDialog({ open, onOpenChange, task, defaultDate }: Props) {
       task && !task.parent_id
         ? tasks
             .filter((candidate) => candidate.parent_id === task.id)
+            .sort((a, b) => a.position - b.position)
             .map((candidate) => ({
               id: candidate.id,
               title: candidate.title,
@@ -105,7 +106,11 @@ export function TaskDialog({ open, onOpenChange, task, defaultDate }: Props) {
           ? {
               subtasks: subtasks
                 .filter((subtask) => subtask.title.trim())
-                .map(({ id, title }) => ({ ...(id ? { id } : {}), title: title.trim() })),
+                .map(({ id, title }, position) => ({
+                  ...(id ? { id } : {}),
+                  title: title.trim(),
+                  position,
+                })),
             }
           : {}),
       },
@@ -223,6 +228,34 @@ export function TaskDialog({ open, onOpenChange, task, defaultDate }: Props) {
                         <p className="mt-1 text-right text-[11px] text-muted-foreground">
                           {subtask.title.length}/500
                         </p>
+                      </div>
+                      <div className="flex shrink-0 flex-col">
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="size-7"
+                          aria-label={`Mover subtarefa ${index + 1} para cima`}
+                          disabled={index === 0}
+                          onClick={() =>
+                            setSubtasks((current) => moveItem(current, index, index - 1))
+                          }
+                        >
+                          <ArrowUp className="size-3.5" />
+                        </Button>
+                        <Button
+                          type="button"
+                          size="icon"
+                          variant="ghost"
+                          className="size-7"
+                          aria-label={`Mover subtarefa ${index + 1} para baixo`}
+                          disabled={index === subtasks.length - 1}
+                          onClick={() =>
+                            setSubtasks((current) => moveItem(current, index, index + 1))
+                          }
+                        >
+                          <ArrowDown className="size-3.5" />
+                        </Button>
                       </div>
                       <Button
                         type="button"

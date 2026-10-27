@@ -68,7 +68,7 @@ export async function initDb() {
       `CREATE TABLE IF NOT EXISTS users (id TEXT PRIMARY KEY, email TEXT NOT NULL UNIQUE, password_hash TEXT NOT NULL, name TEXT NOT NULL DEFAULT '', role TEXT NOT NULL DEFAULT 'user', created_at TEXT NOT NULL)`,
       `CREATE TABLE IF NOT EXISTS sessions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires_at TEXT NOT NULL)`,
       `CREATE TABLE IF NOT EXISTS task_lists (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, name TEXT NOT NULL, color TEXT NOT NULL DEFAULT '#a3e635', created_at TEXT NOT NULL)`,
-      `CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, list_id TEXT REFERENCES task_lists(id) ON DELETE SET NULL, parent_id TEXT REFERENCES tasks(id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT, due_date TEXT, due_time TEXT, priority TEXT NOT NULL DEFAULT 'medium', status TEXT NOT NULL DEFAULT 'pending', recurrence TEXT NOT NULL DEFAULT 'none', recurrence_interval INTEGER NOT NULL DEFAULT 1, completed_at TEXT, deleted_at TEXT, created_at TEXT NOT NULL)`,
+      `CREATE TABLE IF NOT EXISTS tasks (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, list_id TEXT REFERENCES task_lists(id) ON DELETE SET NULL, parent_id TEXT REFERENCES tasks(id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT, due_date TEXT, due_time TEXT, priority TEXT NOT NULL DEFAULT 'medium', status TEXT NOT NULL DEFAULT 'pending', recurrence TEXT NOT NULL DEFAULT 'none', recurrence_interval INTEGER NOT NULL DEFAULT 1, completed_at TEXT, deleted_at TEXT, position INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL)`,
       `CREATE TABLE IF NOT EXISTS habits (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, title TEXT NOT NULL, frequency TEXT NOT NULL DEFAULT 'daily', days_of_week TEXT NOT NULL DEFAULT '[0,1,2,3,4,5,6]', color TEXT NOT NULL DEFAULT 'lime', created_at TEXT NOT NULL)`,
       `CREATE TABLE IF NOT EXISTS habit_logs (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, habit_id TEXT NOT NULL REFERENCES habits(id) ON DELETE CASCADE, log_date TEXT NOT NULL, created_at TEXT NOT NULL, UNIQUE(habit_id, log_date))`,
       `CREATE TABLE IF NOT EXISTS goals (id TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, title TEXT NOT NULL, description TEXT, target_value REAL NOT NULL DEFAULT 100, current_value REAL NOT NULL DEFAULT 0, unit TEXT NOT NULL DEFAULT '', metric_type TEXT NOT NULL DEFAULT 'numeric', deadline TEXT, created_at TEXT NOT NULL)`,
@@ -80,6 +80,9 @@ export async function initDb() {
     if (isPostgres) {
       for (const statement of statements) await pgDb().unsafe(statement);
       await pgDb().unsafe("ALTER TABLE tasks ADD COLUMN IF NOT EXISTS deleted_at TEXT");
+      await pgDb().unsafe(
+        "ALTER TABLE tasks ADD COLUMN IF NOT EXISTS position INTEGER NOT NULL DEFAULT 0",
+      );
       await pgDb().unsafe(
         "ALTER TABLE goals ADD COLUMN IF NOT EXISTS metric_type TEXT NOT NULL DEFAULT 'numeric'",
       );
@@ -105,6 +108,8 @@ export async function initDb() {
       }>;
       if (!columns.some((column) => column.name === "deleted_at"))
         sqliteDb().exec("ALTER TABLE tasks ADD COLUMN deleted_at TEXT");
+      if (!columns.some((column) => column.name === "position"))
+        sqliteDb().exec("ALTER TABLE tasks ADD COLUMN position INTEGER NOT NULL DEFAULT 0");
       const goalColumns = sqliteDb().prepare("PRAGMA table_info(goals)").all() as Array<{
         name: string;
       }>;

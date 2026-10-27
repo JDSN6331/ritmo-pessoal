@@ -33,6 +33,7 @@ export type Task = {
   recurrence_interval: number;
   completed_at: string | null;
   deleted_at: string | null;
+  position: number;
   created_at: string;
 };
 export type Habit = {
@@ -171,6 +172,7 @@ const subtasksSchema = z
     z.object({
       id: z.string().min(1).max(80).optional(),
       title: z.string().trim().min(1).max(500),
+      position: z.number().int().min(0).max(49).optional(),
     }),
   )
   .max(50);
@@ -301,12 +303,12 @@ export const appApi = createServerFn({ method: "POST" })
         ],
       );
       const subtasks = await all<Task>(
-        "SELECT * FROM tasks WHERE parent_id=? AND user_id=? AND deleted_at IS NULL ORDER BY created_at",
+        "SELECT * FROM tasks WHERE parent_id=? AND user_id=? AND deleted_at IS NULL ORDER BY position, created_at",
         [task.id, user.id],
       );
       for (const subtask of subtasks)
         await run(
-          "INSERT INTO tasks (id,user_id,list_id,parent_id,title,description,due_date,due_time,priority,status,recurrence,recurrence_interval,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+          "INSERT INTO tasks (id,user_id,list_id,parent_id,title,description,due_date,due_time,priority,status,recurrence,recurrence_interval,completed_at,position,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
           [
             uid(),
             user.id,
@@ -321,6 +323,7 @@ export const appApi = createServerFn({ method: "POST" })
             "none",
             1,
             null,
+            subtask.position,
             createdAt,
           ],
         );
@@ -334,7 +337,7 @@ export const appApi = createServerFn({ method: "POST" })
       );
       const [tasks, trash, habits, goals, goalSteps, lists] = await Promise.all([
         all<Task>(
-          "SELECT * FROM tasks WHERE user_id = ? AND deleted_at IS NULL ORDER BY due_date, created_at",
+          "SELECT * FROM tasks WHERE user_id = ? AND deleted_at IS NULL ORDER BY due_date, position, created_at",
           [user.id],
         ),
         all<Task>(
@@ -388,8 +391,12 @@ export const appApi = createServerFn({ method: "POST" })
           ]);
           return { ok: true, id };
         }
+        const nextPosition = await one<{ value: number }>(
+          "SELECT COALESCE(MAX(position), -1) + 1 AS value FROM tasks WHERE parent_id=? AND user_id=? AND deleted_at IS NULL",
+          [parentId, user.id],
+        );
         await run(
-          "INSERT INTO tasks (id,user_id,list_id,parent_id,title,description,due_date,due_time,priority,status,recurrence,recurrence_interval,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+          "INSERT INTO tasks (id,user_id,list_id,parent_id,title,description,due_date,due_time,priority,status,recurrence,recurrence_interval,completed_at,position,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
           [
             id,
             user.id,
@@ -404,6 +411,7 @@ export const appApi = createServerFn({ method: "POST" })
             "none",
             1,
             null,
+            Number(nextPosition?.value ?? 0),
             now(),
           ],
         );
@@ -438,18 +446,16 @@ export const appApi = createServerFn({ method: "POST" })
         );
         const existingIds = new Set(existing.map((item) => item.id));
         const keptIds = new Set<string>();
-        for (const subtask of subtasks) {
+        for (const [position, subtask] of subtasks.entries()) {
           if (subtask.id && existingIds.has(subtask.id)) {
             keptIds.add(subtask.id);
-            await run("UPDATE tasks SET title=? WHERE id=? AND parent_id=? AND user_id=?", [
-              subtask.title,
-              subtask.id,
-              id,
-              user.id,
-            ]);
+            await run(
+              "UPDATE tasks SET title=?,position=? WHERE id=? AND parent_id=? AND user_id=?",
+              [subtask.title, position, subtask.id, id, user.id],
+            );
           } else {
             await run(
-              "INSERT INTO tasks (id,user_id,list_id,parent_id,title,description,due_date,due_time,priority,status,recurrence,recurrence_interval,completed_at,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+              "INSERT INTO tasks (id,user_id,list_id,parent_id,title,description,due_date,due_time,priority,status,recurrence,recurrence_interval,completed_at,position,created_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
               [
                 uid(),
                 user.id,
@@ -464,6 +470,7 @@ export const appApi = createServerFn({ method: "POST" })
                 "none",
                 1,
                 null,
+                position,
                 now(),
               ],
             );
@@ -479,6 +486,26 @@ export const appApi = createServerFn({ method: "POST" })
         }
       }
       return { ok: true, id };
+    }
+    if (data.action === "task.subtasks.reorder") {
+      const parentId = text(p.parent_id, 80);
+      const ids = z.array(z.string().min(1).max(80)).min(1).max(50).parse(p.ids);
+      if (new Set(ids).size !== ids.length) throw new Error("A ordem das subtarefas é inválida.");
+      const children = await all<{ id: string }>(
+        "SELECT id FROM tasks WHERE parent_id=? AND user_id=? AND deleted_at IS NULL",
+        [parentId, user.id],
+      );
+      const childIds = new Set(children.map((child) => child.id));
+      if (children.length !== ids.length || ids.some((id) => !childIds.has(id)))
+        throw new Error("Não foi possível atualizar a ordem das subtarefas.");
+      for (const [position, id] of ids.entries())
+        await run("UPDATE tasks SET position=? WHERE id=? AND parent_id=? AND user_id=?", [
+          position,
+          id,
+          parentId,
+          user.id,
+        ]);
+      return { ok: true };
     }
     if (data.action === "task.status") {
       const id = text(p.id, 80);
