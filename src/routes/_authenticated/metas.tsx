@@ -83,7 +83,7 @@ function GoalsPage() {
         }
       />
       {goals.length === 0 && <Empty>Defina uma meta e acompanhe seu avanço.</Empty>}
-      <div className="grid items-start gap-4 md:grid-cols-2">
+      <div className="columns-1 gap-4 md:columns-2">
         {goals.map((g) => {
           const current = Number(g.current_value);
           const total = Number(g.target_value);
@@ -96,7 +96,10 @@ function GoalsPage() {
           return (
             <div
               key={g.id}
-              className={cn("rounded-2xl border bg-card p-5", completed && "border-primary/50")}
+              className={cn(
+                "mb-4 inline-block w-full break-inside-avoid rounded-2xl border bg-card p-5 align-top",
+                completed && "border-primary/50",
+              )}
             >
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0">
