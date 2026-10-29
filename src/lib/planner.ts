@@ -65,6 +65,14 @@ export function moveItem<T>(items: T[], fromIndex: number, toIndex: number) {
   return reordered;
 }
 
+/** Keeps actionable subtasks first while preserving the saved order inside each group. */
+export function orderSubtasks<T extends { status: string; position: number }>(subtasks: T[]) {
+  return [...subtasks].sort((a, b) => {
+    const statusOrder = Number(a.status === "done") - Number(b.status === "done");
+    return statusOrder || a.position - b.position;
+  });
+}
+
 export function displayStatus(
   t: { due_date: string | null; status: string },
   today = todayISO(),

@@ -9,6 +9,7 @@ import {
   mainTasks,
   moveItem,
   nextDueDate,
+  orderSubtasks,
   subtaskProgress,
 } from "@/lib/planner";
 
@@ -60,6 +61,28 @@ describe("hierarquia de tarefas", () => {
     const second = { id: "second", parent_id: "parent", title: "Segunda", position: 1 };
     const first = { id: "first", parent_id: "parent", title: "Primeira", position: 0 };
     expect(groupTasks([parent, second, first], [parent])[0]?.subtasks).toEqual([first, second]);
+  });
+
+  it("mantém subtarefas concluídas no final, respeitando a posição de cada grupo", () => {
+    const subtasks = [
+      { id: "done-2", status: "done", position: 3 },
+      { id: "pending-2", status: "pending", position: 2 },
+      { id: "done-1", status: "done", position: 1 },
+      { id: "pending-1", status: "in_progress", position: 0 },
+    ];
+
+    expect(orderSubtasks(subtasks).map((subtask) => subtask.id)).toEqual([
+      "pending-1",
+      "pending-2",
+      "done-1",
+      "done-2",
+    ]);
+    expect(subtasks.map((subtask) => subtask.id)).toEqual([
+      "done-2",
+      "pending-2",
+      "done-1",
+      "pending-1",
+    ]);
   });
 
   it("move um item sem alterar a lista original", () => {

@@ -515,12 +515,27 @@ export const appApi = createServerFn({ method: "POST" })
         [id, user.id],
       );
       if (!task) throw new Error("Tarefa não encontrada.");
-      await run("UPDATE tasks SET status=?,completed_at=? WHERE id=? AND user_id=?", [
-        status,
-        status === "done" ? now() : null,
-        id,
-        user.id,
-      ]);
+      const completedAt = status === "done" ? now() : null;
+      if (task.parent_id && status === "done" && task.status !== "done") {
+        const nextPosition = await one<{ value: number }>(
+          "SELECT COALESCE(MAX(position), -1) + 1 AS value FROM tasks WHERE parent_id=? AND user_id=? AND deleted_at IS NULL",
+          [task.parent_id, user.id],
+        );
+        await run("UPDATE tasks SET status=?,completed_at=?,position=? WHERE id=? AND user_id=?", [
+          status,
+          completedAt,
+          Number(nextPosition?.value ?? 0),
+          id,
+          user.id,
+        ]);
+      } else {
+        await run("UPDATE tasks SET status=?,completed_at=? WHERE id=? AND user_id=?", [
+          status,
+          completedAt,
+          id,
+          user.id,
+        ]);
+      }
       if (
         status === "done" &&
         task.status !== "done" &&

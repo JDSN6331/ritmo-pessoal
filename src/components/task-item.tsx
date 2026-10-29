@@ -21,6 +21,7 @@ import { cn } from "@/lib/utils";
 import {
   displayStatus,
   moveItem,
+  orderSubtasks,
   RECURRENCE_LABEL,
   subtaskProgress,
   type Recurrence,
@@ -82,7 +83,7 @@ export function TaskItem({ task, subtasks = [], onEdit, selectedIds, onSelectedC
   const [newSubtaskTitle, setNewSubtaskTitle] = useState("");
   const saveTask = useSaveTask();
   const reorderSubtasks = useReorderSubtasks();
-  const orderedSubtasks = [...subtasks].sort((a, b) => a.position - b.position);
+  const orderedSubtasks = orderSubtasks(subtasks);
   const progress = subtaskProgress(orderedSubtasks);
 
   const moveSubtask = (fromIndex: number, toIndex: number) => {
